@@ -9,7 +9,6 @@ Started on 2022-01-11.
 * **analysis** - R Markdown analysis files
 * **docs** - Rendered analysis reports
 * **data** - Raw data used for analysis
-* **output** - Output files for latex
 
 
 ## Data
