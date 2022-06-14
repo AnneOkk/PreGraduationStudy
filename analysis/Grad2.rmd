@@ -16,7 +16,7 @@ output:
 
 ```{r}
 
-knitr::opts_chunk$set(include = T, echo = T, warning = F, message = F)
+knitr::opts_chunk$set(include = T, echo = F, warning = F, message = F)
 
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
@@ -2411,6 +2411,7 @@ t1cplan_1 ~~ t1cplan_6
 fit <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
 summary(fit, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
 
+semPaths(fit, what = "est")
 ```
 
 ```{r}
@@ -2700,6 +2701,104 @@ t3wor ~~ t3cplan_l
 fit_stab <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
 summary(fit_stab, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
 
+semPaths(fit_stab, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
+
+```
+
+#### nocon: mere stability model
+
+```{r}
+
+direct_effects<-'
+t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
+
+t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
+
+
+# Intercepts
+t1cplan_1 ~ i2*1
+t1cplan_2 ~ i3*1
+t1cplan_3 ~ i4*1
+t1cplan_4 ~ i5*1
+t1cplan_5 ~ i6*1
+t1cplan_6 ~ i7*1
+
+t3cplan_1 ~ i2*1
+t3cplan_2 ~ i3*1
+t3cplan_3 ~ i4*1
+t3cplan_4 ~ i5*1
+t3cplan_5 ~ i6*1
+t3cplan_6 ~ i7*1
+
+# Unique Variances and Covariances
+t1cplan_1 ~~ t1cplan_1
+t1cplan_2 ~~ t1cplan_2
+t1cplan_3 ~~ t1cplan_3
+t1cplan_4 ~~ t1cplan_4
+t1cplan_5 ~~ t1cplan_5
+t1cplan_6 ~~ t1cplan_6
+
+t3cplan_1 ~~ t3cplan_1
+t3cplan_2 ~~ t3cplan_2
+t3cplan_3 ~~ t3cplan_3
+t3cplan_4 ~~ t3cplan_4
+t3cplan_5 ~~ t3cplan_5
+t3cplan_6 ~~ t3cplan_6
+
+t1cplan_1 ~~ t3cplan_1
+t1cplan_2 ~~ t3cplan_2
+t1cplan_3 ~~ t3cplan_3
+t1cplan_4 ~~ t3cplan_4
+t1cplan_5 ~~ t3cplan_5
+t1cplan_6 ~~ t3cplan_6
+
+t1cplan_5 ~~ t1cplan_1
+t1cplan_5 ~~ t1cplan_6
+t1cplan_1 ~~ t1cplan_6
+
+t3cplan_5 ~~ t3cplan_1
+t3cplan_5 ~~ t3cplan_6
+t3cplan_1 ~~ t3cplan_6
+
+
+t1wor =~ OB*t1wor_1  + lambda22*t1wor_2 + lambda32*t1wor_3 
+t3wor =~ OB*t3wor_1  + lambda22*t3wor_2 + lambda32*t3wor_3 
+
+
+# Intercepts
+t1wor_1 ~ i8*1
+t1wor_2 ~ i9*1
+t1wor_3 ~ i10*1
+
+t3wor_1 ~ i8*1
+t3wor_2 ~ i9*1
+t3wor_3 ~ i10*1
+
+# Unique Variances and Covariances
+t1wor_1 ~~ t1wor_1
+t1wor_2 ~~ t1wor_2
+t1wor_3 ~~ t1wor_3
+
+t3wor_1 ~~ t3wor_1
+t3wor_2 ~~ t3wor_2
+t3wor_3 ~~ t3wor_3
+
+t1wor_1 ~~ t3wor_1
+t1wor_2 ~~ t3wor_2
+t1wor_3 ~~ t3wor_3
+
+t1wor ~~ t1cplan_l
+t3wor ~~ t3cplan_l
+
+t3wor ~ t1wor
+t3cplan_l ~ t1cplan_l
+'
+
+fit_stab <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
+summary(fit_stab, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
+
+semPaths(fit_stab, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1, style = "lisrel", exoCov = FALSE)
+
 ```
 
 ### theoretical model
@@ -2800,6 +2899,104 @@ modificationindices(fit_theor, sort = T)
 
 
 anova(fit_stab, fit_theor)
+```
+
+#### nocon: theoretical model
+
+```{r}
+direct_effects<-'
+t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
+
+t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
+
+
+# Intercepts
+t1cplan_1 ~ i2*1
+t1cplan_2 ~ i3*1
+t1cplan_3 ~ i4*1
+t1cplan_4 ~ i5*1
+t1cplan_5 ~ i6*1
+t1cplan_6 ~ i7*1
+
+t3cplan_1 ~ i2*1
+t3cplan_2 ~ i3*1
+t3cplan_3 ~ i4*1
+t3cplan_4 ~ i5*1
+t3cplan_5 ~ i6*1
+t3cplan_6 ~ i7*1
+
+# Unique Variances and Covariances
+t1cplan_1 ~~ t1cplan_1
+t1cplan_2 ~~ t1cplan_2
+t1cplan_3 ~~ t1cplan_3
+t1cplan_4 ~~ t1cplan_4
+t1cplan_5 ~~ t1cplan_5
+t1cplan_6 ~~ t1cplan_6
+
+t3cplan_1 ~~ t3cplan_1
+t3cplan_2 ~~ t3cplan_2
+t3cplan_3 ~~ t3cplan_3
+t3cplan_4 ~~ t3cplan_4
+t3cplan_5 ~~ t3cplan_5
+t3cplan_6 ~~ t3cplan_6
+
+t1cplan_1 ~~ t3cplan_1
+t1cplan_2 ~~ t3cplan_2
+t1cplan_3 ~~ t3cplan_3
+t1cplan_4 ~~ t3cplan_4
+t1cplan_5 ~~ t3cplan_5
+t1cplan_6 ~~ t3cplan_6
+
+t1cplan_5 ~~ t1cplan_1
+t1cplan_5 ~~ t1cplan_6
+t1cplan_1 ~~ t1cplan_6
+
+t3cplan_5 ~~ t3cplan_1
+t3cplan_5 ~~ t3cplan_6
+t3cplan_1 ~~ t3cplan_6
+
+
+t1wor =~ OB*t1wor_1  + lambda22*t1wor_2 + lambda32*t1wor_3 
+t3wor =~ OB*t3wor_1  + lambda22*t3wor_2 + lambda32*t3wor_3 
+
+
+# Intercepts
+t1wor_1 ~ i8*1
+t1wor_2 ~ i9*1
+t1wor_3 ~ i10*1
+
+t3wor_1 ~ i8*1
+t3wor_2 ~ i9*1
+t3wor_3 ~ i10*1
+
+# Unique Variances and Covariances
+t1wor_1 ~~ t1wor_1
+t1wor_2 ~~ t1wor_2
+t1wor_3 ~~ t1wor_3
+
+t3wor_1 ~~ t3wor_1
+t3wor_2 ~~ t3wor_2
+t3wor_3 ~~ t3wor_3
+
+t1wor_1 ~~ t3wor_1
+t1wor_2 ~~ t3wor_2
+t1wor_3 ~~ t3wor_3
+
+t3wor ~ WOR*t1wor + CPL*t1cplan_l
+t3cplan_l ~ t1cplan_l 
+
+t1wor ~~ t1cplan_l
+t3wor ~~ t3cplan_l
+'
+
+fit_theor <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
+summary(fit_theor, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
+modificationindices(fit_theor, sort = T)
+
+
+anova(fit_stab, fit_theor)
+
+semPaths(fit_theor, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1, layout = "tree", rotation = 1, structural = T, fade = FALSE)
 ```
 
 ```{r}
@@ -2977,8 +3174,7 @@ modificationindices(fit_reci, sort = T)
 anova(fit_reci, fit_theor)
 ```
 
-
-### NO CONT: mere stability model
+#### nocon: reciprocal model
 
 ```{r}
 direct_effects<-'
@@ -3060,215 +3256,24 @@ t1wor_2 ~~ t3wor_2
 t1wor_3 ~~ t3wor_3
 
 
-t3wor ~ t1wor 
+t1wor ~ P_jobcorona_1 + P_age + P_gender + t1found
+t3wor ~ t1wor + P_jobcorona_1 + P_age + P_gender + t1found + t1cplan_l
 
-t3cplan_l ~ t1cplan_l 
+t3cplan_l ~ t1cplan_l + P_jobcorona_1 + P_age + P_gender + t1found + t1wor 
+t1cplan_l ~ P_jobcorona_1 + P_age + P_gender + t1found
 
 t1wor ~~ t1cplan_l
 t3wor ~~ t3cplan_l
 '
 
-fit_stab <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
-summary(fit_stab, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
-
-```
-
-### NO CONT: theoretical model
-
-```{r}
-direct_effects<-'
-t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
-
-t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
-
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ i3*1
-t1cplan_3 ~ i4*1
-t1cplan_4 ~ i5*1
-t1cplan_5 ~ i6*1
-t1cplan_6 ~ i7*1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ i3*1
-t3cplan_3 ~ i4*1
-t3cplan_4 ~ i5*1
-t3cplan_5 ~ i6*1
-t3cplan_6 ~ i7*1
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
-
-
-t1wor =~ OB*t1wor_1  + lambda22*t1wor_2 + lambda32*t1wor_3 
-t3wor =~ OB*t3wor_1  + lambda22*t3wor_2 + lambda32*t3wor_3 
-
-
-# Intercepts
-t1wor_1 ~ i8*1
-t1wor_2 ~ i9*1
-t1wor_3 ~ i10*1
-
-t3wor_1 ~ i8*1
-t3wor_2 ~ i9*1
-t3wor_3 ~ i10*1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-
-
-t3wor ~ t1wor
-
-t3cplan_l ~ t1cplan_l 
-
-t1wor ~~ t1cplan_l
-t3wor ~~ t3cplan_l + t1cplan_l
-'
-
-fit_theor <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
-summary(fit_theor, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
-modificationindices(fit_theor, sort = T)
-
-
-anova(fit_stab, fit_theor)
-```
-
-
-
-### NO CONT: reciprocal model
-
-```{r}
-direct_effects<-'
-t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
-
-t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
-
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ i3*1
-t1cplan_3 ~ i4*1
-t1cplan_4 ~ i5*1
-t1cplan_5 ~ i6*1
-t1cplan_6 ~ i7*1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ i3*1
-t3cplan_3 ~ i4*1
-t3cplan_4 ~ i5*1
-t3cplan_5 ~ i6*1
-t3cplan_6 ~ i7*1
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
-
-
-t1wor =~ OB*t1wor_1  + lambda22*t1wor_2 + lambda32*t1wor_3 
-t3wor =~ OB*t3wor_1  + lambda22*t3wor_2 + lambda32*t3wor_3 
-
-
-# Intercepts
-t1wor_1 ~ i8*1
-t1wor_2 ~ i9*1
-t1wor_3 ~ i10*1
-
-t3wor_1 ~ i8*1
-t3wor_2 ~ i9*1
-t3wor_3 ~ i10*1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-
-
-t3wor ~ t1wor  + t1cplan_l
-
-t3cplan_l ~ t1cplan_l   + t1wor
-
-t1wor ~~ t1cplan_l 
-t3wor ~~ t3cplan_l
-'
-
-fit_reci <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
+fit_reci <- sem(direct_effects, data=df_sel, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
 summary(fit_reci, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
 modificationindices(fit_reci, sort = T)
 
 
 anova(fit_reci, fit_theor)
+
+semPaths(fit_reci, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
 ```
 
 ## lagged direct effectsb with controls T1 plan > t3 wor
@@ -3346,7 +3351,7 @@ fit <- sem(model, data = df, missing = "fiml", se = "bootstrap", bootstrap = 100
 #           drop.list.single.group = TRUE)
 
 summary(fit, standardized = T, fit.measures=TRUE, rsquare=TRUE)
-
+semPaths(fit, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
 ```
 
 ```{r}
@@ -3460,7 +3465,7 @@ lavInspect(fit, what = "data", add.labels = TRUE, add.class = TRUE,
 
 summary(fit, standardized = F, fit.measures=TRUE)
 modificationindices(fit, sort = T)
-
+semPaths(fit, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
 ```
 
 ```{r}
