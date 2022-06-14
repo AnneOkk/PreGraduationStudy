@@ -2,6 +2,8 @@
 title: 'Grad2'
 author: "Anne-Kathrin Kleine"
 date: "2/27/2020"
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
 output:
   html_document:
     number_sections: yes
@@ -13,11 +15,11 @@ output:
     toc_depth: '3'
 ---
 
-
 ```{r}
+knitr::opts_chunk$set(include = T, echo = T, warning = F, message = F)
+```
 
-knitr::opts_chunk$set(include = T, echo = F, warning = F, message = F)
-
+```{r eval = FALSE}
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg)) 
@@ -28,30 +30,17 @@ ipak <- function(pkg){
 packages <- c("mediation", "foreign", "tidyverse","stargazer","multicon", "ggplot2", "plyr", "reshape2", "readxl", 
               "scales", "grid", "tidyLPA", "Rcpp", "naniar", "dplyr", "car", "mice", 
               "rstudioapi", "labelled", "modi", "semPlot", "kulife", "careless", "rworldmap", 
-              "countrycode", "WDI", "reticulate")
+              "countrycode", "WDI", "reticulate", "dplyr")
 ipak(packages)
-```
-
-```{r}
- #library(rstudioapi)
-# set_wd <- function() {
-# current_path <- getActiveDocumentContext()$path 
-#  setwd(dirname(current_path ))
-#  print( getwd() )
- # }
-# set_wd()
-getwd()
-
-source("../R/render_with_jobs.R")
-
 ```
 
 
 # Prepare dataset
 
-## Get dataset
+## Get dataset 
 
 ```{r}
+library(dplyr)
 files <- dir("../../data", pattern = "\\.sav$", full.names = FALSE) 
 df_list <- vector("list", length(files))
 names(df_list) <- files
@@ -147,6 +136,7 @@ df_orig <- df
 
 ```
 
+
 ## Recoding 
 
 ```{r}
@@ -179,11 +169,27 @@ df <- dplyr::rename(df,
 ```
 
 
-## Delete irrelevant columns 
+## Delete non-anonym columns 
 
 ```{r}
 df_sel <- df %>% dplyr::select(-matches("Status|IPAddress|Progress|Duration|Finished|Recorded|Response|Recipient|External|Location|Distribution|User|comment|SC0|occf|t1id|t3empse"))
 
+```
+
+## Anonymize and save raw data
+
+```{r}
+library(haven)
+df_sel$P_ID <- sample(length(df_sel$P_ID))
+haven::write_sav(df, "../data/raw/df_raw.sav")
+```
+
+# RUN FROM HERE 
+
+## Read in data 
+
+```{r}
+df_sel <- read_sav("../data/raw/df_raw.sav")
 ```
 
 ## PANA and exhaustion 
@@ -230,8 +236,6 @@ colnames(df_sel) <- gsub('antic_4', 'anticpos_2', colnames(df_sel))
 library(haven)
 
 write_sav(df_sel, "../../data/df_sel.sav")
-
-count(df_sel$P_gradyear_1 == 2)
 ```
 
 
@@ -239,8 +243,8 @@ count(df_sel$P_gradyear_1 == 2)
 
 ## Identify careless responders
 
-```{r}
-df <- df_sel[!is.na(df_sel$P_ID)]
+```{r warning = FALSE}
+df <- df_sel
 
 # IRV
 ## T1
@@ -268,7 +272,6 @@ df_checkt2 <- df_checkt2[df_checkt2$irv <= (mean(df_checkt2$irv, na.rm = T) -2*s
 
 P_ID_no_low_irv <- df_checkt2$P_ID
 
-df[(df$P_ID %in% P_ID_no_low_irv),]
 df_checkt2 <- df[!(df$P_ID %in% P_ID_no_low_irv),] %>% dplyr::select(dplyr::matches("t2|P_ID|StartDate2|EndDate2"))
 
 
@@ -281,7 +284,6 @@ df_checkt3<- df_checkt3[df_checkt3$irv <= (mean(df_checkt3$irv, na.rm = T) -2*sd
 
 P_ID_no_low_irv <- df_checkt3$P_ID
 
-df[(df$P_ID %in% P_ID_no_low_irv),]
 df_checkt3 <- df[!(df$P_ID %in% P_ID_no_low_irv),] %>% dplyr::select(dplyr::matches("t3|P_ID|StartDate3|EndDate3"))
 
 P_df <- df %>% dplyr::select(dplyr::matches("P_",ignore.case = F))
@@ -345,7 +347,7 @@ library(sjlabelled)
 data_t1 <- df_nospeed %>% dplyr::select(dplyr::matches("t1|P_ID|StartDate1|EndDate1"))
 P_IDs1 <- df_nospeed %>% dplyr::select(dplyr::matches("P_ID|Date1"))
 mahad1 <- df_nospeed %>% dplyr::select(dplyr::matches("t1cconf|t1wor|t1cplan")) %>% remove_all_labels(.)
-mahad1 <- mahad(mahad1, plot = TRUE, flag = T, confidence = 0.999, na.rm = TRUE)
+mahad1 <- mahad(mahad1, plot = F, flag = T, confidence = 0.999, na.rm = TRUE)
 mahad1 <- cbind(P_IDs1, mahad1)
 PID_exclude_t1 <- mahad1[(mahad1$flagged == T),  ]
 data_t1 <- data_t1[!(data_t1$P_ID %in% PID_exclude_t1$P_ID),]
@@ -356,7 +358,7 @@ nrow(data_t1[!is.na(data_t1$StartDate1), ])
 data_t2 <- df_nospeed %>% dplyr::select(dplyr::matches("t2|P_ID|StartDate2|EndDate2"))
 P_IDs2 <- df_nospeed %>% dplyr::select(dplyr::matches("P_ID|Date2"))
 mahad2 <- df_nospeed %>% dplyr::select(dplyr::matches("t2cconf|t2wor|t2cplan")) %>% remove_all_labels(.)
-mahad2 <- mahad(mahad2, plot = TRUE, flag = T, confidence = 0.999, na.rm = TRUE)
+mahad2 <- mahad(mahad2, plot = F, flag = T, confidence = 0.999, na.rm = TRUE)
 mahad2 <- cbind(P_IDs2, mahad2)
 PID_exclude_t2 <- mahad2[(mahad2$flagged == T),  ]
 data_t2 <- data_t2[!(data_t2$P_ID %in% PID_exclude_t2$P_ID),]
@@ -367,7 +369,7 @@ nrow(data_t2[!is.na(data_t2$StartDate2), ])
 data_t3 <- df_nospeed %>% dplyr::select(dplyr::matches("t3|P_ID|StartDate3|EndDate3"))
 P_IDs3 <- df_nospeed %>% dplyr::select(dplyr::matches("P_ID|Date3"))
 mahad3 <- df_nospeed %>% dplyr::select(dplyr::matches("t3cconf|t3wor|t3cplan")) %>% remove_all_labels(.)
-mahad3 <- mahad(mahad3, plot = TRUE, flag = T, confidence = 0.999, na.rm = TRUE)
+mahad3 <- mahad(mahad3, plot = F, flag = T, confidence = 0.999, na.rm = TRUE)
 mahad3 <- cbind(P_IDs3, mahad3)
 PID_exclude_t3 <- mahad3[(mahad3$flagged == T),  ]
 data_t3 <- data_t3[!(data_t3$P_ID %in% PID_exclude_t3$P_ID),]
@@ -383,8 +385,6 @@ df_nomahal <- left_join(x=df_nomahal,y=data_t3,by="P_ID")
 nrow(df_nospeed[!is.na(df_nospeed$StartDate1),])-nrow(df_nomahal[!is.na(df_nomahal$StartDate1),])
 nrow(df_nospeed[!is.na(df_nospeed$StartDate2),])-nrow(df_nomahal[!is.na(df_nomahal$StartDate2),])
 nrow(df_nospeed[!is.na(df_nospeed$StartDate3),])-nrow(df_nomahal[!is.na(df_nomahal$StartDate3),])
-
-
 
 ```
 
@@ -409,11 +409,11 @@ duplicated(df$P_ID, my_dat_UK_Study$t1id)
 ## get country names
 
 ```{r}
+library(tidyr)
 ## get country names
 
 Location <- df_orig %>% dplyr::select(dplyr::matches("Location|P_ID"))
 df <- left_join(df, Location, by = "P_ID")
-
 
 
 library(sp)
@@ -774,89 +774,45 @@ print(xtable(corstar_select, type = "latex"), file = "../output/cor_comp_df_G2.t
 
 ## CFA
 
+### Original
+
 ```{r}
 library(lavaan)
 # CFA
-worry <- '
-WOR =~ t1wor_1 + t1wor_2 + t1wor_3'
-fit.One_fac<- cfa(worry, data = df, meanstructure = TRUE, std.lv = TRUE, estimator = 'MLR') 
-summary(fit.One_fac, fit.measures=TRUE)
 
-mod.four_fac <- '
-CCONF =~ t3cconf_1 + t3cconf_2 + t3cconf_3 + t3cconf_4
-CPL =~ t3cplan_1 + t3cplan_2 + t3cplan_3 + t3cplan_4 + t3cplan_5 + t3cplan_6 
-WOR =~ t3wor_1 + t3wor_2 + t3wor_3
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
+mod.four_fac_orig <- '
+CCONF =~ t1cconf_1 + t1cconf_2 + t1cconf_3 + t1cconf_4
+CPL =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6 
+WOR =~ t1wor_1 + t1wor_2 + t1wor_3
 '
+fit.mod.four_fac_origc<- cfa(mod.four_fac_orig, data = df, meanstructure = TRUE, std.lv = TRUE, estimator = 'MLR') 
 
-# Generate the Lavaan model
-fit.One_fac<- cfa(mod.four_fac, data = df, meanstructure = TRUE, std.lv = TRUE, estimator = 'MLR') 
-summary(fit.One_fac, fit.measures=TRUE)
-modindices(fit.One_fac, sort = TRUE, maximum.number = 10)
-           
-mod.two_fac <- '
-CCONF =~ t1cconf_1 + t1cconf_2 + t1cconf_3 + t1cconf_4 + t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6 
+summary(fit.mod.four_fac_origc, fit.measures=TRUE)
+modindices(fit.mod.four_fac_origc, sort = TRUE, maximum.number = 10)
+```
+
+### Modified
+
+```{r}
+mod.four_fac <- '
+CCONF =~ t1cconf_1 + t1cconf_2 + t1cconf_3 + t1cconf_4
+CPL =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6 
 WOR =~ t1wor_1 + t1wor_2 + t1wor_3
 t1cplan_5 ~~ t1cplan_1
 t1cplan_5 ~~ t1cplan_6
 t1cplan_1 ~~ t1cplan_6
 '
 
-# Generate the Lavaan model
-fit.three_fac<- cfa(mod.two_fac, data = df, meanstructure = TRUE, std.lv = TRUE, estimator = 'MLR') 
+fit.mod.four_fac<- cfa(mod.four_fac, data = df, meanstructure = TRUE, std.lv = TRUE, estimator = 'MLR') 
 
-summary(fit.three_fac, fit.measures=TRUE)
+summary(fit.mod.four_fac, fit.measures=TRUE)
 
-anova(fit.One_fac, fit.three_fac)
-
-
-mod.four_fac <- '
-CCONF =~ t1cconf_1 + t1cconf_2 + t1cconf_3 + t1cconf_4 + t1wor_1 + t1wor_2 + t1wor_3
-CPL =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6 
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-'
-
-# Generate the Lavaan model
-fit.One_fac<- cfa(mod.four_fac, data = df, meanstructure = TRUE, std.lv = TRUE, estimator = 'MLR') 
-summary(fit.One_fac, fit.measures=TRUE)
-modindices(fit.One_fac, sort = TRUE, maximum.number = 10)
 ```
 
 
 ## Measurement Invariance  
 
-```{r}
-mod.four_fac <- '
-t1CCONF =~ t1cconf_1 + t1cconf_2 + t1cconf_3 + t1cconf_4
-t1CPL =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6 
-t1WOR =~ t1wor_1 + t1wor_2 + t1wor_3
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t2CCONF =~ t2cconf_1 + t2cconf_2 + t2cconf_3 + t2cconf_4
-t2CPL =~ t2cplan_1 + t2cplan_2 + t2cplan_3 + t2cplan_4 + t2cplan_5 + t2cplan_6 
-t2WOR =~ t2wor_1 + t2wor_2 + t2wor_3
-t2cplan_5 ~~ t2cplan_1
-t2cplan_5 ~~ t2cplan_6
-t2cplan_1 ~~ t2cplan_6
-
-t3CCONF =~ t3cconf_1 + t3cconf_2 + t3cconf_3 + t3cconf_4
-t3CPL =~ t3cplan_1 + t3cplan_2 + t3cplan_3 + t3cplan_4 + t3cplan_5 + t3cplan_6 
-t3WOR =~ t3wor_1 + t3wor_2 + t3wor_3
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
-'
-
-
-```
-
-### Full model
+### Configural
 
 ```{r}
 configural <- '
@@ -907,7 +863,6 @@ t1cplan_1 ~~ t1cplan_6
 t3cplan_5 ~~ t3cplan_1
 t3cplan_5 ~~ t3cplan_6
 t3cplan_1 ~~ t3cplan_6
-
 # Latent Variable Means
 t1cplan_l ~ 1
 t3cplan_l ~ 1
@@ -957,8 +912,12 @@ t1wor ~~ t3wor
 fit_configural <- lavaan::cfa(configural, data = df, meanstructure = TRUE, missing="fiml")
 summary(fit_configural, fit.measures = TRUE)
 fit_c_cplan <- fitMeasures(fit_configural, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-modificationindices(fit_configural, sort=T)
 
+```
+
+### Loading 
+
+```{r}
 loading <- '
 t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
 
@@ -1038,7 +997,6 @@ t3wor_3 ~ 1
 t1wor_1 ~~ t1wor_1
 t1wor_2 ~~ t1wor_2
 t1wor_3 ~~ t1wor_3
-
 t3wor_1 ~~ t3wor_1
 t3wor_2 ~~ t3wor_2
 t3wor_3 ~~ t3wor_3
@@ -1060,6 +1018,11 @@ t1wor ~~ t3wor
 '
 fit_loading <- lavaan::cfa(loading, data = df, meanstructure = TRUE, missing="fiml")
 summary(fit_loading, fit.measures = TRUE)
+```
+
+### Intercept
+
+```{r}
 fit_l_cplan <- fitMeasures(fit_loading, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
 
 
@@ -1149,7 +1112,6 @@ t3wor_3 ~~ t3wor_3
 t1wor_1 ~~ t3wor_1
 t1wor_2 ~~ t3wor_2
 t1wor_3 ~~ t3wor_3
-
 # Latent Variable Means
 t1wor ~ 1
 t3wor ~ 1
@@ -1162,6 +1124,9 @@ t1wor ~~ t3wor
 '
 fit_intercept <- lavaan::cfa(intercept, data = df, meanstructure = TRUE, missing="fiml")
 summary(fit_intercept, fit.measures = TRUE)
+```
+
+```{r}
 fit_i_cplan <- fitMeasures(fit_intercept, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
 
 fit_cplan <- as.data.frame(round(rbind(fit_c_cplan, fit_l_cplan, fit_i_cplan),3)) 
@@ -1209,1199 +1174,19 @@ fit_cplan[1,5] <- "-"
 rownames(fit_cplan) <- c("C", "M", "S")
 
 fit_cplan
-
-
-meas_invar_tab <-  fit_cplan
-meas_invar_tab <- tibble::rownames_to_column(meas_invar_tab, "Invariance Test")
-rownames(meas_invar_tab) <- NULL
-
-
-colnames(meas_invar_tab) <- c("Test", "$\\chi^2$ (\\textit{df})","CFI", "RMSEA \\ (90\\% CI)", "SRMR", "$\\Delta\\chi^2$","$\\Delta$CFI", "$\\Delta$RMSEA", "$\\Delta$SRMR", "Decision")
-
-meas_invar_tab[,10] <- c("-", "Accept", "Accept")
-
-meas_invar_tab[,1] <- c("CI", "MI", "SI")
-
-
-print(xtable(meas_invar_tab), type = "latex", include.rownames = FALSE,  sanitize.text.function=function(x){x}, file = "../output/meas_invar_tab_full.tex")
-```
-
-
-
-### Career goal clarity 
-
-```{r, include = T, echo = F, warning = F}
-configural <- '
-t1cplan_l =~ OA*t1cplan_1  + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6 
-t2cplan_l =~ OA*t2cplan_1  + t2cplan_2 + t2cplan_3 + t2cplan_4 + t2cplan_5 + t2cplan_6 
-t3cplan_l =~ OA*t3cplan_1  + t3cplan_2 + t3cplan_3 + t3cplan_4 + t3cplan_5 + t3cplan_6 
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ 1
-t1cplan_3 ~ 1
-t1cplan_4 ~ 1
-t1cplan_5 ~ 1
-t1cplan_6 ~ 1
-
-
-t2cplan_1 ~ i2*1
-t2cplan_2 ~ 1
-t2cplan_3 ~ 1
-t2cplan_4 ~ 1
-t2cplan_5 ~ 1
-t2cplan_6 ~ 1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ 1
-t3cplan_3 ~ 1
-t3cplan_4 ~ 1
-t3cplan_5 ~ 1
-t3cplan_6 ~ 1
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t2cplan_1 ~~ t2cplan_1
-t2cplan_2 ~~ t2cplan_2
-t2cplan_3 ~~ t2cplan_3
-t2cplan_4 ~~ t2cplan_4
-t2cplan_5 ~~ t2cplan_5
-t2cplan_6 ~~ t2cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t2cplan_1
-t1cplan_2 ~~ t2cplan_2
-t1cplan_3 ~~ t2cplan_3
-t1cplan_4 ~~ t2cplan_4
-t1cplan_5 ~~ t2cplan_5
-t1cplan_6 ~~ t2cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t2cplan_1 ~~ t3cplan_1
-t2cplan_2 ~~ t3cplan_2
-t2cplan_3 ~~ t3cplan_3
-t2cplan_4 ~~ t3cplan_4
-t2cplan_5 ~~ t3cplan_5
-t2cplan_6 ~~ t3cplan_6
-
-# Latent Variable Means
-t1cplan_l ~ 1
-t2cplan_l ~ 1
-t3cplan_l ~ 1
-
-# Latent Variable Variances and Covariance
-t1cplan_l ~~ t1cplan_l
-t2cplan_l ~~ t2cplan_l
-t3cplan_l ~~ t3cplan_l
-
-t1cplan_l ~~ t2cplan_l
-t1cplan_l ~~ t3cplan_l
-t2cplan_l ~~ t3cplan_l
-
-'
-fit_configural <- lavaan::cfa(configural, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_configural, fit.measures = TRUE)
-fit_c_cplan <- fitMeasures(fit_configural, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-modificationindices(fit_configural, sort=T)
-```
-
-```{r}
-loading <- '
-t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
-t2cplan_l =~ OA*t2cplan_1  + lambda2*t2cplan_2 + lambda3*t2cplan_3 + lambda4*t2cplan_4 + lambda5*t2cplan_5 + lambda6*t2cplan_6
-t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
-
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ 1
-t1cplan_3 ~ 1
-t1cplan_4 ~ 1
-t1cplan_5 ~ 1
-t1cplan_6 ~ 1
-
-
-t2cplan_1 ~ i2*1
-t2cplan_2 ~ 1
-t2cplan_3 ~ 1
-t2cplan_4 ~ 1
-t2cplan_5 ~ 1
-t2cplan_6 ~ 1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ 1
-t3cplan_3 ~ 1
-t3cplan_4 ~ 1
-t3cplan_5 ~ 1
-t3cplan_6 ~ 1
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t2cplan_1 ~~ t2cplan_1
-t2cplan_2 ~~ t2cplan_2
-t2cplan_3 ~~ t2cplan_3
-t2cplan_4 ~~ t2cplan_4
-t2cplan_5 ~~ t2cplan_5
-t2cplan_6 ~~ t2cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t2cplan_1
-t1cplan_2 ~~ t2cplan_2
-t1cplan_3 ~~ t2cplan_3
-t1cplan_4 ~~ t2cplan_4
-t1cplan_5 ~~ t2cplan_5
-t1cplan_6 ~~ t2cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t2cplan_1 ~~ t3cplan_1
-t2cplan_2 ~~ t3cplan_2
-t2cplan_3 ~~ t3cplan_3
-t2cplan_4 ~~ t3cplan_4
-t2cplan_5 ~~ t3cplan_5
-t2cplan_6 ~~ t3cplan_6
-
-# Latent Variable Means
-t1cplan_l ~ 1
-t2cplan_l ~ 1
-t3cplan_l ~ 1
-
-# Latent Variable Variances and Covariance
-t1cplan_l ~~ t1cplan_l
-t2cplan_l ~~ t2cplan_l
-t3cplan_l ~~ t3cplan_l
-
-t1cplan_l ~~ t2cplan_l
-t1cplan_l ~~ t3cplan_l
-t2cplan_l ~~ t3cplan_l
-
-'
-fit_loading <- lavaan::cfa(loading, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_loading, fit.measures = TRUE)
-fit_l_cplan <- fitMeasures(fit_loading, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-
-```{r}
-intercept <- '
-t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
-t2cplan_l =~ OA*t2cplan_1  + lambda2*t2cplan_2 + lambda3*t2cplan_3 + lambda4*t2cplan_4 + lambda5*t2cplan_5 + lambda6*t2cplan_6
-t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
-
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ i3*1
-t1cplan_3 ~ i4*1
-t1cplan_4 ~ i5*1
-t1cplan_5 ~ i6*1
-t1cplan_6 ~ i7*1
-
-t2cplan_1 ~ i2*1
-t2cplan_2 ~ i3*1
-t2cplan_3 ~ i4*1
-t2cplan_4 ~ i5*1
-t2cplan_5 ~ i6*1
-t2cplan_6 ~ i7*1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ i3*1
-t3cplan_3 ~ i4*1
-t3cplan_4 ~ i5*1
-t3cplan_5 ~ i6*1
-t3cplan_6 ~ i7*1
-
-
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t2cplan_1 ~~ t2cplan_1
-t2cplan_2 ~~ t2cplan_2
-t2cplan_3 ~~ t2cplan_3
-t2cplan_4 ~~ t2cplan_4
-t2cplan_5 ~~ t2cplan_5
-t2cplan_6 ~~ t2cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t2cplan_1
-t1cplan_2 ~~ t2cplan_2
-t1cplan_3 ~~ t2cplan_3
-t1cplan_4 ~~ t2cplan_4
-t1cplan_5 ~~ t2cplan_5
-t1cplan_6 ~~ t2cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t2cplan_1 ~~ t3cplan_1
-t2cplan_2 ~~ t3cplan_2
-t2cplan_3 ~~ t3cplan_3
-t2cplan_4 ~~ t3cplan_4
-t2cplan_5 ~~ t3cplan_5
-t2cplan_6 ~~ t3cplan_6
-
-# Latent Variable Means
-t1cplan_l ~ 1
-t2cplan_l ~ 1
-t3cplan_l ~ 1
-
-# Latent Variable Variances and Covariance
-t1cplan_l ~~ t1cplan_l
-t2cplan_l ~~ t2cplan_l
-t3cplan_l ~~ t3cplan_l
-
-t1cplan_l ~~ t2cplan_l
-t1cplan_l ~~ t3cplan_l
-t2cplan_l ~~ t3cplan_l
-'
-fit_intercept <- lavaan::cfa(intercept, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_intercept, fit.measures = TRUE)
-fit_i_cplan <- fitMeasures(fit_intercept, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-
-```{r}
-fit_cplan <- as.data.frame(round(rbind(fit_c_cplan, fit_l_cplan, fit_i_cplan),3)) 
-
-delta_chi2_1 <- round(fit_cplan[1,1]-fit_cplan[2,1],3)%>% abs(.) 
-delta_chi2_1 <-f_num(delta_chi2_1, digits = 3)
-delta_df_1 <- round(fit_cplan[2,2]-fit_cplan[1,2],1)%>% abs(.)
-delta_cfi_1 <- round(fit_cplan[1,4]-fit_cplan[2,4],3)%>% abs(.)
-delta_cfi_1 <- f_num(delta_cfi_1, digits = 3)
-delta_rmsea_1 <- round(fit_cplan[1,5]-fit_cplan[2,5],3)%>% abs(.)
-delta_rmsea_1 <- f_num(delta_rmsea_1, digits = 3)
-delta_srmr_1 <- round(fit_cplan[1,8]-fit_cplan[2,8],3)%>% abs(.)
-delta_srmr_1 <- f_num(delta_srmr_1, digits = 3)
-
-delta_chi2_2 <- round(fit_cplan[2,1]-fit_cplan[3,1],3)%>% abs(.)
-delta_chi2_2 <- f_num(delta_chi2_2, digits = 3)
-delta_df_2 <- round(fit_cplan[3,2]-fit_cplan[2,2],1)%>% abs(.)
-delta_cfi_2 <- round(fit_cplan[2,4]-fit_cplan[3,4],3)%>% abs(.)
-delta_cfi_2 <- f_num(delta_cfi_2, digits = 3)
-delta_rmsea_2 <- round(fit_cplan[2,5]-fit_cplan[3,5],3)%>% abs(.)
-delta_rmsea_2 <- f_num(delta_rmsea_2, digits = 3)
-delta_srmr_2 <- round(fit_cplan[2,8]-fit_cplan[3,8],3)%>% abs(.)
-delta_srmr_2 <- f_num(delta_srmr_2, digits = 3)
-
-delta_chi <- c("-", delta_chi2_1, delta_chi2_2)
-delta_df <- c("-", delta_df_1, delta_df_2)
-delta_cfi <- c("-", delta_cfi_1, delta_cfi_2)
-delta_rmsea <- c("-", delta_rmsea_1, delta_rmsea_2)
-delta_srmr <- c("-",delta_srmr_1, delta_srmr_2)
-decision <- c("", "", "")
-
-fit_cplan <- lapply(fit_cplan, function(x) f_num(x, digits = 3)) %>% as.data.frame(.)
-fit_cplan$df <- as.numeric(as.character(fit_cplan$df ))
-
-fit_cplan <- cbind(fit_cplan, delta_chi, delta_df, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_cplan$chisq <- (paste(fit_cplan$chisq, " (",fit_cplan$df, ")", sep=""))
-fit_cplan$rmsea <- (paste(fit_cplan$rmsea, "\\", " (",fit_cplan$rmsea.ci.lower, "-", fit_cplan$rmsea.ci.upper, ")", sep=""))
-fit_cplan$delta_chisq <- (paste(fit_cplan$delta_chi, " (",fit_cplan$delta_df, ")", sep=""))
-
-fit_cplan <- fit_cplan %>% dplyr::select(chisq, cfi, rmsea, srmr, delta_chisq, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_cplan[1,5] <- "-"
-
-rownames(fit_cplan) <- c("C", "M", "S")
-
-fit_cplan
-```
-
-
-### Self-efficacy
-
-```{r, include = T, echo = F, warning = F}
-configural <- '
-t1se =~ OA*t1se_1  + t1se_2 + t1se_3 + t1se_4 
-t3se =~ OA*t3se_1  + t3se_2 + t3se_3 + t3se_4 
-
-# Intercepts
-t1se_1 ~ i2*1
-t1se_2 ~ 1
-t1se_3 ~ 1
-t1se_4 ~ 1
-
-t3se_1 ~ i2*1
-t3se_2 ~ 1
-t3se_3 ~ 1
-t3se_4 ~ 1
-
-# Unique Variances and Covariances
-t1se_1 ~~ t1se_1
-t1se_2 ~~ t1se_2
-t1se_3 ~~ t1se_3
-t1se_4 ~~ t1se_4
-
-t3se_1 ~~ t3se_1
-t3se_2 ~~ t3se_2
-t3se_3 ~~ t3se_3
-t3se_4 ~~ t3se_4
-
-t1se_1 ~~ t3se_1
-t1se_2 ~~ t3se_2
-t1se_3 ~~ t3se_3
-t1se_4 ~~ t3se_4
-
-# Latent Variable Means
-t1se ~ 1
-t3se ~ 1
-
-# Latent Variable Variances and Covariance
-t1se ~~ t1se
-t3se ~~ t3se
-
-t1se ~~ t3se
-'
-fit_configural <- lavaan::cfa(configural, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_configural, fit.measures = TRUE)
-fit_c_se <- fitMeasures(fit_configural, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-```{r}
-loading <- '
-t1se =~ OA*t1se_1  + lambda2*t1se_2 + lambda3*t1se_3 + lambda4*t1se_4 
-t3se =~ OA*t3se_1  + lambda2*t3se_2 + lambda3*t3se_3 + lambda4*t3se_4 
-
-# Intercepts
-t1se_1 ~ i2*1
-t1se_2 ~ 1
-t1se_3 ~ 1
-t1se_4 ~ 1
-
-t3se_1 ~ i2*1
-t3se_2 ~ 1
-t3se_3 ~ 1
-t3se_4 ~ 1
-
-# Unique Variances and Covariances
-t1se_1 ~~ t1se_1
-t1se_2 ~~ t1se_2
-t1se_3 ~~ t1se_3
-t1se_4 ~~ t1se_4
-
-t3se_1 ~~ t3se_1
-t3se_2 ~~ t3se_2
-t3se_3 ~~ t3se_3
-t3se_4 ~~ t3se_4
-
-t1se_1 ~~ t3se_1
-t1se_2 ~~ t3se_2
-t1se_3 ~~ t3se_3
-t1se_4 ~~ t3se_4
-
-
-# Latent Variable Means
-t1se ~ 1
-t3se ~ 1
-
-# Latent Variable Variances and Covariance
-t1se ~~ t1se
-t3se ~~ t3se
-
-t1se ~~ t3se
-'
-fit_loading <- lavaan::cfa(loading, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_loading, fit.measures = TRUE)
-fit_l_se <- fitMeasures(fit_loading, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-
-```{r}
-intercept <- '
-t1se =~ OA*t1se_1  + lambda2*t1se_2 + lambda3*t1se_3 + lambda4*t1se_4
-t3se =~ OA*t3se_1  + lambda2*t3se_2 + lambda3*t3se_3 + lambda4*t3se_4 
-
-# Intercepts
-t1se_1 ~ i2*1
-t1se_2 ~ i3*1
-t1se_3 ~ i4*1
-t1se_4 ~ i5*1
-
-t3se_1 ~ i2*1
-t3se_2 ~ i3*1
-t3se_3 ~ i4*1
-t3se_4 ~ i5*1
-
-# Unique Variances and Covariances
-t1se_1 ~~ t1se_1
-t1se_2 ~~ t1se_2
-t1se_3 ~~ t1se_3
-t1se_4 ~~ t1se_4
-
-t3se_1 ~~ t3se_1
-t3se_2 ~~ t3se_2
-t3se_3 ~~ t3se_3
-t3se_4 ~~ t3se_4
-
-t1se_1 ~~ t3se_1
-t1se_2 ~~ t3se_2
-t1se_3 ~~ t3se_3
-t1se_4 ~~ t3se_4
-
-# Latent Variable Means
-t1se ~ 1
-t3se ~ 1
-
-# Latent Variable Variances and Covariance
-t1se ~~ t1se
-t3se ~~ t3se
-
-t1se ~~ t3se
-'
-fit_intercept <- lavaan::cfa(intercept, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_intercept, fit.measures = TRUE)
-fit_i_se <- fitMeasures(fit_intercept, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-```{r}
-fit_se <- as.data.frame(round(rbind(fit_c_se, fit_l_se, fit_i_se),3)) 
-
-delta_chi2_1 <- round(fit_se[1,1]-fit_se[2,1],3)%>% abs(.) 
-delta_chi2_1 <-f_num(delta_chi2_1, digits = 3)
-delta_df_1 <- round(fit_se[2,2]-fit_se[1,2],1)%>% abs(.)
-delta_cfi_1 <- round(fit_se[1,4]-fit_se[2,4],3)%>% abs(.)
-delta_cfi_1 <- f_num(delta_cfi_1, digits = 3)
-delta_rmsea_1 <- round(fit_se[1,5]-fit_se[2,5],3)%>% abs(.)
-delta_rmsea_1 <- f_num(delta_rmsea_1, digits = 3)
-delta_srmr_1 <- round(fit_se[1,8]-fit_se[2,8],3)%>% abs(.)
-delta_srmr_1 <- f_num(delta_srmr_1, digits = 3)
-
-delta_chi2_2 <- round(fit_se[2,1]-fit_se[3,1],3)%>% abs(.)
-delta_chi2_2 <- f_num(delta_chi2_2, digits = 3)
-delta_df_2 <- round(fit_se[3,2]-fit_se[2,2],1)%>% abs(.)
-delta_cfi_2 <- round(fit_se[2,4]-fit_se[3,4],3)%>% abs(.)
-delta_cfi_2 <- f_num(delta_cfi_2, digits = 3)
-delta_rmsea_2 <- round(fit_se[2,5]-fit_se[3,5],3)%>% abs(.)
-delta_rmsea_2 <- f_num(delta_rmsea_2, digits = 3)
-delta_srmr_2 <- round(fit_se[2,8]-fit_se[3,8],3)%>% abs(.)
-delta_srmr_2 <- f_num(delta_srmr_2, digits = 3)
-
-delta_chi <- c("-", delta_chi2_1, delta_chi2_2)
-delta_df <- c("-", delta_df_1, delta_df_2)
-delta_cfi <- c("-", delta_cfi_1, delta_cfi_2)
-delta_rmsea <- c("-", delta_rmsea_1, delta_rmsea_2)
-delta_srmr <- c("-",delta_srmr_1, delta_srmr_2)
-decision <- c("", "", "")
-
-fit_se <- lapply(fit_se, function(x) f_num(x, digits = 3)) %>% as.data.frame(.)
-fit_se$df <- as.numeric(as.character(fit_se$df ))
-
-fit_se <- cbind(fit_se, delta_chi, delta_df, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_se$chisq <- (paste(fit_se$chisq, " (",fit_se$df, ")", sep=""))
-fit_se$rmsea <- (paste(fit_se$rmsea, "\\", " (",fit_se$rmsea.ci.lower, "-", fit_se$rmsea.ci.upper, ")", sep=""))
-fit_se$delta_chisq <- (paste(fit_se$delta_chi, " (",fit_se$delta_df, ")", sep=""))
-
-fit_se <- fit_se %>% dplyr::select(chisq, cfi, rmsea, srmr, delta_chisq, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_se[1,5] <- "-"
-
-rownames(fit_se) <- c("C", "M", "S")
-
-fit_se
-```
-
-### Career confidence
-
-```{r, include = T, echo = F, warning = F}
-library(lavaan)
-configural <- '
-t1cconf =~ OA*t1cconf_1  + t1cconf_2 + t1cconf_3 + t1cconf_4 
-t2cconf =~ OA*t2cconf_1  + t2cconf_2 + t2cconf_3 + t2cconf_4 
-t3cconf =~ OA*t3cconf_1  + t3cconf_2 + t3cconf_3 + t3cconf_4 
-
-# Intercepts
-t1cconf_1 ~ i2*1
-t1cconf_2 ~ 1
-t1cconf_3 ~ 1
-t1cconf_4 ~ 1
-
-t2cconf_1 ~ i2*1
-t2cconf_2 ~ 1
-t2cconf_3 ~ 1
-t2cconf_4 ~ 1
-
-t3cconf_1 ~ i2*1
-t3cconf_2 ~ 1
-t3cconf_3 ~ 1
-t3cconf_4 ~ 1
-
-# Unique Variances and Covariances
-t1cconf_1 ~~ t1cconf_1
-t1cconf_2 ~~ t1cconf_2
-t1cconf_3 ~~ t1cconf_3
-t1cconf_4 ~~ t1cconf_4
-
-t3cconf_1 ~~ t3cconf_1
-t3cconf_2 ~~ t3cconf_2
-t3cconf_3 ~~ t3cconf_3
-t3cconf_4 ~~ t3cconf_4
-
-t2cconf_1 ~~ t2cconf_1
-t2cconf_2 ~~ t2cconf_2
-t2cconf_3 ~~ t2cconf_3
-t2cconf_4 ~~ t2cconf_4
-
-t1cconf_1 ~~ t2cconf_1
-t1cconf_2 ~~ t2cconf_2
-t1cconf_3 ~~ t2cconf_3
-t1cconf_4 ~~ t2cconf_4
-
-t1cconf_1 ~~ t3cconf_1
-t1cconf_2 ~~ t3cconf_2
-t1cconf_3 ~~ t3cconf_3
-t1cconf_4 ~~ t3cconf_4
-
-t2cconf_1 ~~ t3cconf_1
-t2cconf_2 ~~ t3cconf_2
-t2cconf_3 ~~ t3cconf_3
-t2cconf_4 ~~ t3cconf_4
-
-# Latent Variable Means
-t1cconf ~ 1
-t2cconf ~ 1
-t3cconf ~ 1
-
-# Latent Variable Variances and Covariance
-t1cconf ~~ t1cconf
-t2cconf ~~ t2cconf
-t3cconf ~~ t3cconf
-
-t1cconf ~~ t2cconf
-t1cconf ~~ t3cconf
-t2cconf ~~ t3cconf
-
-'
-fit_configural <- lavaan::cfa(configural, data = df_nomahal, meanstructure = TRUE, missing="fiml")
-summary(fit_configural, fit.measures = TRUE)
-fit_c_cconf <- fitMeasures(fit_configural, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-modificationindices(fit_configural, sort=T)
-```
-
-```{r}
-loading <- '
-t1cconf =~ OA*t1cconf_1  + lambda2*t1cconf_2 + lambda3*t1cconf_3 + lambda4*t1cconf_4 
-t2cconf =~ OA*t2cconf_1  + lambda2*t2cconf_2 + lambda3*t2cconf_3 + lambda4*t2cconf_4 
-t3cconf =~ OA*t3cconf_1  + lambda2*t3cconf_2 + lambda3*t3cconf_3 + lambda4*t3cconf_4 
-
-# Intercepts
-t1cconf_1 ~ i2*1
-t1cconf_2 ~ 1
-t1cconf_3 ~ 1
-t1cconf_4 ~ 1
-
-t2cconf_1 ~ i2*1
-t2cconf_2 ~ 1
-t2cconf_3 ~ 1
-t2cconf_4 ~ 1
-
-t3cconf_1 ~ i2*1
-t3cconf_2 ~ 1
-t3cconf_3 ~ 1
-t3cconf_4 ~ 1
-
-# Unique Variances and Covariances
-t1cconf_1 ~~ t1cconf_1
-t1cconf_2 ~~ t1cconf_2
-t1cconf_3 ~~ t1cconf_3
-t1cconf_4 ~~ t1cconf_4
-
-t3cconf_1 ~~ t3cconf_1
-t3cconf_2 ~~ t3cconf_2
-t3cconf_3 ~~ t3cconf_3
-t3cconf_4 ~~ t3cconf_4
-
-t2cconf_1 ~~ t2cconf_1
-t2cconf_2 ~~ t2cconf_2
-t2cconf_3 ~~ t2cconf_3
-t2cconf_4 ~~ t2cconf_4
-
-t1cconf_1 ~~ t2cconf_1
-t1cconf_2 ~~ t2cconf_2
-t1cconf_3 ~~ t2cconf_3
-t1cconf_4 ~~ t2cconf_4
-
-t1cconf_1 ~~ t3cconf_1
-t1cconf_2 ~~ t3cconf_2
-t1cconf_3 ~~ t3cconf_3
-t1cconf_4 ~~ t3cconf_4
-
-t2cconf_1 ~~ t3cconf_1
-t2cconf_2 ~~ t3cconf_2
-t2cconf_3 ~~ t3cconf_3
-t2cconf_4 ~~ t3cconf_4
-
-# Latent Variable Means
-t1cconf ~ 1
-t2cconf ~ 1
-t3cconf ~ 1
-
-# Latent Variable Variances and Covariance
-t1cconf ~~ t1cconf
-t2cconf ~~ t2cconf
-t3cconf ~~ t3cconf
-
-t1cconf ~~ t2cconf
-t1cconf ~~ t3cconf
-t2cconf ~~ t3cconf
-'
-fit_loading <- lavaan::cfa(loading, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_loading, fit.measures = TRUE)
-fit_l_cconf <- fitMeasures(fit_loading, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-
-```{r}
-intercept <- '
-t1cconf =~ OA*t1cconf_1  + lambda2*t1cconf_2 + lambda3*t1cconf_3 + lambda4*t1cconf_4
-t2cconf =~ OA*t2cconf_1  + lambda2*t2cconf_2 + lambda3*t2cconf_3 + lambda4*t2cconf_4 
-t3cconf =~ OA*t3cconf_1  + lambda2*t3cconf_2 + lambda3*t3cconf_3 + lambda4*t3cconf_4 
-
-# Intercepts
-t1cconf_1 ~ i2*1
-t1cconf_2 ~ i3*1
-t1cconf_3 ~ i4*1
-t1cconf_4 ~ i5*1
-
-t2cconf_1 ~ i2*1
-t2cconf_2 ~ i3*1
-t2cconf_3 ~ i4*1
-t2cconf_4 ~ i5*1
-
-t3cconf_1 ~ i2*1
-t3cconf_2 ~ i3*1
-t3cconf_3 ~ i4*1
-t3cconf_4 ~ i5*1
-
-# Unique Variances and Covariances
-t1cconf_1 ~~ t1cconf_1
-t1cconf_2 ~~ t1cconf_2
-t1cconf_3 ~~ t1cconf_3
-t1cconf_4 ~~ t1cconf_4
-
-t3cconf_1 ~~ t3cconf_1
-t3cconf_2 ~~ t3cconf_2
-t3cconf_3 ~~ t3cconf_3
-t3cconf_4 ~~ t3cconf_4
-
-t2cconf_1 ~~ t2cconf_1
-t2cconf_2 ~~ t2cconf_2
-t2cconf_3 ~~ t2cconf_3
-t2cconf_4 ~~ t2cconf_4
-
-t1cconf_1 ~~ t2cconf_1
-t1cconf_2 ~~ t2cconf_2
-t1cconf_3 ~~ t2cconf_3
-t1cconf_4 ~~ t2cconf_4
-
-t1cconf_1 ~~ t3cconf_1
-t1cconf_2 ~~ t3cconf_2
-t1cconf_3 ~~ t3cconf_3
-t1cconf_4 ~~ t3cconf_4
-
-t2cconf_1 ~~ t3cconf_1
-t2cconf_2 ~~ t3cconf_2
-t2cconf_3 ~~ t3cconf_3
-t2cconf_4 ~~ t3cconf_4
-
-# Latent Variable Means
-t1cconf ~ 1
-t2cconf ~ 1
-t3cconf ~ 1
-
-# Latent Variable Variances and Covariance
-t1cconf ~~ t1cconf
-t2cconf ~~ t2cconf
-t3cconf ~~ t3cconf
-
-t1cconf ~~ t2cconf
-t1cconf ~~ t3cconf
-t2cconf ~~ t3cconf
-'
-fit_intercept <- lavaan::cfa(intercept, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_intercept, fit.measures = TRUE)
-fit_i_cconf <- fitMeasures(fit_intercept, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-```{r}
-fit_cconf <- as.data.frame(round(rbind(fit_c_cconf, fit_l_cconf, fit_i_cconf),3)) 
-
-delta_chi2_1 <- round(fit_cconf[1,1]-fit_cconf[2,1],3)%>% abs(.) 
-delta_chi2_1 <-f_num(delta_chi2_1, digits = 3)
-delta_df_1 <- round(fit_cconf[2,2]-fit_cconf[1,2],1)%>% abs(.)
-delta_cfi_1 <- round(fit_cconf[1,4]-fit_cconf[2,4],3)%>% abs(.)
-delta_cfi_1 <- f_num(delta_cfi_1, digits = 3)
-delta_rmsea_1 <- round(fit_cconf[1,5]-fit_cconf[2,5],3)%>% abs(.)
-delta_rmsea_1 <- f_num(delta_rmsea_1, digits = 3)
-delta_srmr_1 <- round(fit_cconf[1,8]-fit_cconf[2,8],3)%>% abs(.)
-delta_srmr_1 <- f_num(delta_srmr_1, digits = 3)
-
-delta_chi2_2 <- round(fit_cconf[2,1]-fit_cconf[3,1],3)%>% abs(.)
-delta_chi2_2 <- f_num(delta_chi2_2, digits = 3)
-delta_df_2 <- round(fit_cconf[3,2]-fit_cconf[2,2],1)%>% abs(.)
-delta_cfi_2 <- round(fit_cconf[2,4]-fit_cconf[3,4],3)%>% abs(.)
-delta_cfi_2 <- f_num(delta_cfi_2, digits = 3)
-delta_rmsea_2 <- round(fit_cconf[2,5]-fit_cconf[3,5],3)%>% abs(.)
-delta_rmsea_2 <- f_num(delta_rmsea_2, digits = 3)
-delta_srmr_2 <- round(fit_cconf[2,8]-fit_cconf[3,8],3)%>% abs(.)
-delta_srmr_2 <- f_num(delta_srmr_2, digits = 3)
-
-delta_chi <- c("-", delta_chi2_1, delta_chi2_2)
-delta_df <- c("-", delta_df_1, delta_df_2)
-delta_cfi <- c("-", delta_cfi_1, delta_cfi_2)
-delta_rmsea <- c("-", delta_rmsea_1, delta_rmsea_2)
-delta_srmr <- c("-",delta_srmr_1, delta_srmr_2)
-decision <- c("", "", "")
-
-fit_cconf <- lapply(fit_cconf, function(x) f_num(x, digits = 3)) %>% as.data.frame(.)
-fit_cconf$df <- as.numeric(as.character(fit_cconf$df ))
-
-fit_cconf <- cbind(fit_cconf, delta_chi, delta_df, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_cconf$chisq <- (paste(fit_cconf$chisq, " (",fit_cconf$df, ")", sep=""))
-fit_cconf$rmsea <- (paste(fit_cconf$rmsea, "\\", " (",fit_cconf$rmsea.ci.lower, "-", fit_cconf$rmsea.ci.upper, ")", sep=""))
-fit_cconf$delta_chisq <- (paste(fit_cconf$delta_chi, " (",fit_cconf$delta_df, ")", sep=""))
-
-fit_cconf <- fit_cconf %>% dplyr::select(chisq, cfi, rmsea, srmr, delta_chisq, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_cconf[1,5] <- "-"
-
-rownames(fit_cconf) <- c("C", "M", "S")
-
-fit_cconf
-```
-
-### Career worry and career planning 
-
-```{r}
-# NOT RUN {
-model <- ' t1wor =~ t1wor_1 + t1wor_2 + t1wor_3
-           t2wor =~ t2wor_1 + t2wor_2 + t2wor_3
-           t3wor =~ t3wor_1 + t3wor_2 + t3wor_3'
-
-# Create list of variables
-var1 <- c("t1wor_1", "t1wor_2", "t1wor_3")
-var2 <- c("t2wor_1", "t2wor_2", "t2wor_3")
-var3 <- c("t3wor_1", "t3wor_2", "t3wor_3")
-constrainedVar <- list(var1, var2, var3)
-
-# Invariance of the same factor across timepoints
-library(semTools)
-longInvariance(model, auto="all", constrainAuto=TRUE, fit.measures = c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.pvalue", "rmsea.ci.upper", "srmr"), varList=constrainedVar, data=df)
-
-
-# NOT RUN {
-model <- ' t1cplan =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6
-           t2cplan =~ t2cplan_1 + t2cplan_2 + t2cplan_3 + t2cplan_4 + t2cplan_5 + t2cplan_6
-
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t1cplan_3 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_4
-t1cplan_2 ~~ t1cplan_4
-
-t2cplan_5 ~~ t2cplan_1
-t2cplan_5 ~~ t2cplan_6
-t2cplan_1 ~~ t2cplan_6
-
-t2cplan_3 ~~ t2cplan_2
-t2cplan_3 ~~ t2cplan_4
-t2cplan_2 ~~ t2cplan_4
-
-'
-
-fit.One_fac<- cfa(model, data = df, meanstructure = TRUE, std.lv = TRUE, estimator = 'MLR') 
-summary(fit.One_fac, fit.measures=TRUE)
-modindices(fit.One_fac, sort = TRUE, maximum.number = 10)
-
-# Create list of variables
-var1 <- c("t1cplan_1", "t1cplan_2", "t1cplan_3", "t1cplan_4", "t1cplan_5", "t1cplan_6")
-var2 <- c("t2cplan_1", "t2cplan_2", "t2cplan_3", "t2cplan_4", "t2cplan_5", "t2cplan_6")
-
-constrainedVar <- list(var1, var2)
-
-# Invariance of the same factor across timepoints
-library(semTools)
-longInvariance(model, auto="all", constrainAuto=F, fit.measures = c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.pvalue", "rmsea.ci.upper", "srmr"), varList=constrainedVar, data=df)
-```
-
-
-
-### Career related worry
-
-```{r, include = T, echo = F, warning = F}
-configural <- '
-t1wor =~ OA*t1wor_1  + t1wor_2 + t1wor_3  
-t2wor =~ OA*t2wor_1  + t2wor_2 + t2wor_3 
-t3wor =~ OA*t3wor_1  + t3wor_2 + t3wor_3  
-
-
-# Intercepts
-t1wor_1 ~ i2*1
-t1wor_2 ~ 1
-t1wor_3 ~ 1
-
-t2wor_1 ~ i2*1
-t2wor_2 ~ 1
-t2wor_3 ~ 1
-
-t3wor_1 ~ i2*1
-t3wor_2 ~ 1
-t3wor_3 ~ 1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-
-t2wor_1 ~~ t2wor_1
-t2wor_2 ~~ t2wor_2
-t2wor_3 ~~ t2wor_3
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-
-t1wor_1 ~~ t2wor_1
-t1wor_2 ~~ t2wor_2
-t1wor_3 ~~ t2wor_3
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-
-t2wor_1 ~~ t3wor_1
-t2wor_2 ~~ t3wor_2
-t2wor_3 ~~ t3wor_3
-
-# Latent Variable Means
-t1wor ~ 1
-t2wor ~ 1
-t3wor ~ 1
-
-# Latent Variable Variances and Covariance
-t1wor ~~ t1wor
-t2wor ~~ t2wor
-t3wor ~~ t3wor
-
-
-t1wor ~~ t2wor
-t1wor ~~ t3wor
-t2wor ~~ t3wor
-
-'
-fit_configural <- lavaan::cfa(configural, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_configural, fit.measures = TRUE)
-fit_c_wor <- fitMeasures(fit_configural, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-```{r}
-loading <- '
-t1wor =~ OA*t1wor_1  + lambda2*t1wor_2 + lambda3*t1wor_3 + lambda4*t1wor_4 
-t2wor =~ OA*t2wor_1  + lambda2*t2wor_2 + lambda3*t2wor_3 + lambda4*t2wor_4 
-t3wor =~ OA*t3wor_1  + lambda2*t3wor_2 + lambda3*t3wor_3 + lambda4*t3wor_4 
-
-
-# Intercepts
-t1wor_1 ~ i2*1
-t1wor_2 ~ 1
-t1wor_3 ~ 1
-t1wor_4 ~ 1
-
-t2wor_1 ~ i2*1
-t2wor_2 ~ 1
-t2wor_3 ~ 1
-t2wor_4 ~ 1
-
-t3wor_1 ~ i2*1
-t3wor_2 ~ 1
-t3wor_3 ~ 1
-t3wor_4 ~ 1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-t1wor_4 ~~ t1wor_4
-
-t2wor_1 ~~ t2wor_1
-t2wor_2 ~~ t2wor_2
-t2wor_3 ~~ t2wor_3
-t2wor_4 ~~ t2wor_4
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-t3wor_4 ~~ t3wor_4
-
-t1wor_1 ~~ t2wor_1
-t1wor_2 ~~ t2wor_2
-t1wor_3 ~~ t2wor_3
-t1wor_4 ~~ t2wor_4
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-t1wor_4 ~~ t3wor_4
-
-t2wor_1 ~~ t3wor_1
-t2wor_2 ~~ t3wor_2
-t2wor_3 ~~ t3wor_3
-t2wor_4 ~~ t3wor_4
-
-# Latent Variable Means
-t1wor ~ 1
-t2wor ~ 1
-t3wor ~ 1
-
-# Latent Variable Variances and Covariance
-t1wor ~~ t1wor
-t2wor ~~ t2wor
-t3wor ~~ t3wor
-
-
-t1wor ~~ t2wor
-t1wor ~~ t3wor
-t2wor ~~ t3wor
-'
-fit_loading <- lavaan::cfa(loading, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_loading, fit.measures = TRUE)
-fit_l_wor <- fitMeasures(fit_loading, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-
-```{r}
-intercept <- '
-t1wor =~ OA*t1wor_1  + lambda2*t1wor_2 + lambda3*t1wor_3 + lambda4*t1wor_4 
-t2wor =~ OA*t2wor_1  + lambda2*t2wor_2 + lambda3*t2wor_3 + lambda4*t2wor_4
-t3wor =~ OA*t3wor_1  + lambda2*t3wor_2 + lambda3*t3wor_3 + lambda4*t3wor_4
-
-
-# Intercepts
-t1wor_1 ~ i2*1
-t1wor_2 ~ i3*1
-t1wor_3 ~ i4*1
-t1wor_4 ~ i5*1
-
-t2wor_1 ~ i2*1
-t2wor_2 ~ i3*1
-t2wor_3 ~ i4*1
-t2wor_4 ~ i5*1
-
-t3wor_1 ~ i2*1
-t3wor_2 ~ i3*1
-t3wor_3 ~ i4*1
-t3wor_4 ~ i5*1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-t1wor_4 ~~ t1wor_4
-
-t2wor_1 ~~ t2wor_1
-t2wor_2 ~~ t2wor_2
-t2wor_3 ~~ t2wor_3
-t2wor_4 ~~ t2wor_4
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-t3wor_4 ~~ t3wor_4
-
-t1wor_1 ~~ t2wor_1
-t1wor_2 ~~ t2wor_2
-t1wor_3 ~~ t2wor_3
-t1wor_4 ~~ t2wor_4
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-t1wor_4 ~~ t3wor_4
-
-t2wor_1 ~~ t3wor_1
-t2wor_2 ~~ t3wor_2
-t2wor_3 ~~ t3wor_3
-t2wor_4 ~~ t3wor_4
-
-# Latent Variable Means
-t1wor ~ 1
-t2wor ~ 1
-t3wor ~ 1
-
-# Latent Variable Variances and Covariance
-t1wor ~~ t1wor
-t2wor ~~ t2wor
-t3wor ~~ t3wor
-
-
-t1wor ~~ t2wor
-t1wor ~~ t3wor
-t2wor ~~ t3wor
-'
-fit_intercept <- lavaan::cfa(intercept, data = df, meanstructure = TRUE, missing="fiml")
-summary(fit_intercept, fit.measures = TRUE)
-fit_i_wor <- fitMeasures(fit_intercept, c("chisq", "df", "pvalue", "cfi", "rmsea", "rmsea.ci.lower", "rmsea.ci.upper", "srmr"))
-```
-
-```{r}
-fit_wor <- as.data.frame(round(rbind(fit_c_wor, fit_l_wor, fit_i_wor),3)) 
-
-delta_chi2_1 <- round(fit_wor[1,1]-fit_wor[2,1],3)%>% abs(.) 
-delta_chi2_1 <-f_num(delta_chi2_1, digits = 3)
-delta_df_1 <- round(fit_wor[2,2]-fit_wor[1,2],1)%>% abs(.)
-delta_cfi_1 <- round(fit_wor[1,4]-fit_wor[2,4],3)%>% abs(.)
-delta_cfi_1 <- f_num(delta_cfi_1, digits = 3)
-delta_rmsea_1 <- round(fit_wor[1,5]-fit_wor[2,5],3)%>% abs(.)
-delta_rmsea_1 <- f_num(delta_rmsea_1, digits = 3)
-delta_srmr_1 <- round(fit_wor[1,8]-fit_wor[2,8],3)%>% abs(.)
-delta_srmr_1 <- f_num(delta_srmr_1, digits = 3)
-
-delta_chi2_2 <- round(fit_wor[2,1]-fit_wor[3,1],3)%>% abs(.)
-delta_chi2_2 <- f_num(delta_chi2_2, digits = 3)
-delta_df_2 <- round(fit_wor[3,2]-fit_wor[2,2],1)%>% abs(.)
-delta_cfi_2 <- round(fit_wor[2,4]-fit_wor[3,4],3)%>% abs(.)
-delta_cfi_2 <- f_num(delta_cfi_2, digits = 3)
-delta_rmsea_2 <- round(fit_wor[2,5]-fit_wor[3,5],3)%>% abs(.)
-delta_rmsea_2 <- f_num(delta_rmsea_2, digits = 3)
-delta_srmr_2 <- round(fit_wor[2,8]-fit_wor[3,8],3)%>% abs(.)
-delta_srmr_2 <- f_num(delta_srmr_2, digits = 3)
-
-delta_chi <- c("-", delta_chi2_1, delta_chi2_2)
-delta_df <- c("-", delta_df_1, delta_df_2)
-delta_cfi <- c("-", delta_cfi_1, delta_cfi_2)
-delta_rmsea <- c("-", delta_rmsea_1, delta_rmsea_2)
-delta_srmr <- c("-",delta_srmr_1, delta_srmr_2)
-decision <- c("", "", "")
-
-fit_wor <- lapply(fit_wor, function(x) f_num(x, digits = 3)) %>% as.data.frame(.)
-fit_wor$df <- as.numeric(as.character(fit_wor$df ))
-
-fit_wor <- cbind(fit_wor, delta_chi, delta_df, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_wor$chisq <- (paste(fit_wor$chisq, " (",fit_wor$df, ")", sep=""))
-fit_wor$rmsea <- (paste(fit_wor$rmsea, "\\", " (",fit_wor$rmsea.ci.lower, "-", fit_wor$rmsea.ci.upper, ")", sep=""))
-fit_wor$delta_chisq <- (paste(fit_wor$delta_chi, " (",fit_wor$delta_df, ")", sep=""))
-
-fit_wor <- fit_wor %>% dplyr::select(chisq, cfi, rmsea, srmr, delta_chisq, delta_cfi, delta_rmsea, delta_srmr, decision)
-
-fit_wor[1,5] <- "-"
-
-rownames(fit_wor) <- c("C", "M", "S")
-
-fit_wor
-
-```
-
-## Bind MI results - output worry
-
-```{r}
-meas_invar_tab <-  fit_wor
-meas_invar_tab <- tibble::rownames_to_column(meas_invar_tab, "Invariance Test")
-rownames(meas_invar_tab) <- NULL
-
-
-colnames(meas_invar_tab) <- c("Test", "$\\chi^2$ (\\textit{df})","CFI", "RMSEA \\ (90\\% CI)", "SRMR", "$\\Delta\\chi^2$","$\\Delta$CFI", "$\\Delta$RMSEA", "$\\Delta$SRMR", "Decision")
-
-meas_invar_tab[,10] <- c("-", "Accept", "Accept")
-
-meas_invar_tab[,1] <- c("CI", "MI", "SI")
-
-
-print(xtable(meas_invar_tab), type = "latex", include.rownames = FALSE,  sanitize.text.function=function(x){x}, file = "../output/meas_invar_tab_worry.tex")
-```
-
-
-## Bind MI results - output 
-
-```{r}
-library(xtable)
-# bind all fit tables 
-construct <- c("Clarity","", "", 
-               "Self-eff.", "", "",
-               "CRSE", "", "",
-               "Worry", "", "")
-
-meas_invar_tab <- rbind(fit_cplan, fit_se, fit_cconf, fit_wor)
-meas_invar_tab <- tibble::rownames_to_column(meas_invar_tab, "Invariance Test")
-meas_invar_tab <- cbind(construct, meas_invar_tab)
-rownames(meas_invar_tab) <- NULL
-
-
-
-colnames(meas_invar_tab) <- c("Var", "Test", "$\\chi^2$ (\\textit{df})","CFI", "RMSEA \\ (90\\% CI)", "SRMR", "$\\Delta\\chi^2$","$\\Delta$CFI", "$\\Delta$RMSEA", "$\\Delta$SRMR", "Decision")
-
-meas_invar_tab[,11] <- c("-", "Accept", "Accept", "-", "Accept", "Accept", "-", "Accept", "Accept", "-", "Accept", "Accept")
-
-meas_invar_tab[,2] <- c("CI", "MI", "SI", "CI", "MI", "SI","CI", "MI", "SI", "CI", "MI", "SI")
-
-meas_invar_tab <- meas_invar_tab[,-7]
-
-print(xtable(meas_invar_tab), type = "latex", include.rownames = FALSE,  sanitize.text.function=function(x){x}, file = "../output/meas_invar_tab.tex")
 ```
 
 ## Concurrent Direct effects
 
+### No controls
+
 ```{r}
+library(semPlot)
 direct_effects<-'
 
 Worry_T1=~1*t1wor_1+t1wor_2+t1wor_3      # This specifies the measurement model 
 Cplan_T1=~1*t1cplan_1+t1cplan_2+t1cplan_3+t1cplan_4+t1cplan_5+t1cplan_6 
-Worry_T1 ~  CPL*Cplan_T1 + AGE*P_age + GEN*P_gender + COR*P_jobcorona_1 + FOU*t1found 
+Worry_T1 ~  CPL*Cplan_T1 
 
 t1cplan_5 ~~ t1cplan_1
 t1cplan_5 ~~ t1cplan_6
@@ -2413,6 +1198,29 @@ summary(fit, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
 
 semPaths(fit, what = "est")
 ```
+
+### With controls
+
+```{r}
+library(semPlot)
+direct_effects<-'
+
+Worry_T1=~1*t1wor_1+t1wor_2+t1wor_3      # This specifies the measurement model 
+Cplan_T1=~1*t1cplan_1+t1cplan_2+t1cplan_3+t1cplan_4+t1cplan_5+t1cplan_6 
+Worry_T1 ~  CPL*Cplan_T1 + AGE*P_age + GEN*P_gender + COR*P_jobcorona_1 + FOU*t1found 
+
+t1cplan_5 ~~ t1cplan_1
+t1cplan_5 ~~ t1cplan_6
+t1cplan_1 ~~ t1cplan_6
+'
+
+fit <- sem(direct_effects, data=df, estimator='mlr',missing='fiml', fixed.x = F) #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
+summary(fit, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
+
+semPaths(fit, what = "est")
+```
+
+
 
 ```{r}
 library(broom)
@@ -2485,36 +1293,6 @@ print(xtable(out_df, type = "latex"), file = "../output/paras_direct_G2_conc_rep
 # get fit indices 
 ```
 
-### Change in job status T1 to T4
-
-```{r}
-# Change from T1 to T2
-## Filter out those with no positive job change
-
-df$found_t1t3 <- rep(NA, nrow(df))
-
-df$found_t1t3 <- ifelse(df$t2change_6_TEXT == "I was offered a position by my current supervisor" | df$t2change_6_TEXT == "I have had job interviews and I'm waiting to hear back" | df$t2change_6_TEXT == "I have had job interviews and I'm waiting to hear back" | df$t2change_6_TEXT == "shortlisted for a job" | df$t2change_6_TEXT == "started self employed work" |  df$t2change_6_TEXT == "I started working for 2 companies more (now I have 3 agreements)" | df$t2change_6_TEXT == "Fingerprints/badge created/officially in job system" | df$t2change_6_TEXT == "i started another job" | df$t2change_6_TEXT == "I confirmed my starting date (July 1)" | df$t3change_6_TEXT == "I can now proceed with entering a PhD program, which is a 'promotion' for being an academic" | df$t3change_6_TEXT == "I’ve had 2 job offers! (Woo)" |  df$t3change_6_TEXT == "I had two interviews for a job" | df$t3change_6_TEXT == "I got an interview for a position" | df$t3change_6_TEXT == "I got a job, but I'm waiting for the boss to start new recruitment (basically to tell me when will I start)" | df$t3change_6_TEXT == "I had some interviews", 1, NA)
-
-
-df$found_t1t3 <- case_when((df$t1found == 2) ~ 1,
-                           (df$t2change_1 == 1) ~ 1,
-                           (df$t2change_2 == 1) ~ 1,
-                           (df$t2change_4 == 1) ~ 1,
-                           (df$t3change_1 == 1) ~ 1,
-                           (df$t3change_2 == 1) ~ 1,
-                           (df$t3change_4 == 1) ~ 1)
-
-
-
-length(which(df$t1found == 2))
-length(which(df$t2change_1 == 1))
-length(which(df$t3change_1 == 1))
-
-length(which(df$found_t1t3 == 1))
-
-df$found_t1t3[is.na(df$found_t1t3)] <- 0
-
-```
 
 ```{r}
 direct_effects<-'
@@ -2603,7 +1381,7 @@ print(xtable(out_df, type = "latex"), file = "../output/paras_direct_G2_conc_rep
 # get fit indices 
 ```
 
-## lagged direct effectsb with controls T1 plan > t3 wor
+## Lagged direct effects
 
 ### mere stability model
 
@@ -2698,108 +1476,13 @@ t1wor ~~ t1cplan_l
 t3wor ~~ t3cplan_l
 '
 
-fit_stab <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
+fit_stab <- sem(direct_effects, data=df, estimator='mlr',missing='fiml', fixed.x = F) #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
 summary(fit_stab, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
 
 semPaths(fit_stab, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
 
 ```
 
-#### nocon: mere stability model
-
-```{r}
-
-direct_effects<-'
-t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
-
-t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
-
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ i3*1
-t1cplan_3 ~ i4*1
-t1cplan_4 ~ i5*1
-t1cplan_5 ~ i6*1
-t1cplan_6 ~ i7*1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ i3*1
-t3cplan_3 ~ i4*1
-t3cplan_4 ~ i5*1
-t3cplan_5 ~ i6*1
-t3cplan_6 ~ i7*1
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
-
-
-t1wor =~ OB*t1wor_1  + lambda22*t1wor_2 + lambda32*t1wor_3 
-t3wor =~ OB*t3wor_1  + lambda22*t3wor_2 + lambda32*t3wor_3 
-
-
-# Intercepts
-t1wor_1 ~ i8*1
-t1wor_2 ~ i9*1
-t1wor_3 ~ i10*1
-
-t3wor_1 ~ i8*1
-t3wor_2 ~ i9*1
-t3wor_3 ~ i10*1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-
-t1wor ~~ t1cplan_l
-t3wor ~~ t3cplan_l
-
-t3wor ~ t1wor
-t3cplan_l ~ t1cplan_l
-'
-
-fit_stab <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
-summary(fit_stab, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
-
-semPaths(fit_stab, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1, style = "lisrel", exoCov = FALSE)
-
-```
 
 ### theoretical model
 
@@ -2893,182 +1576,10 @@ t1wor ~~ t1cplan_l
 t3wor ~~ t3cplan_l
 '
 
-fit_theor <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
+fit_theor <- sem(direct_effects, data=df, estimator='mlr',missing='fiml', fixed.x = F) #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
 summary(fit_theor, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
 modificationindices(fit_theor, sort = T)
-
-
 anova(fit_stab, fit_theor)
-```
-
-#### nocon: theoretical model
-
-```{r}
-direct_effects<-'
-t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
-
-t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
-
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ i3*1
-t1cplan_3 ~ i4*1
-t1cplan_4 ~ i5*1
-t1cplan_5 ~ i6*1
-t1cplan_6 ~ i7*1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ i3*1
-t3cplan_3 ~ i4*1
-t3cplan_4 ~ i5*1
-t3cplan_5 ~ i6*1
-t3cplan_6 ~ i7*1
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
-
-
-t1wor =~ OB*t1wor_1  + lambda22*t1wor_2 + lambda32*t1wor_3 
-t3wor =~ OB*t3wor_1  + lambda22*t3wor_2 + lambda32*t3wor_3 
-
-
-# Intercepts
-t1wor_1 ~ i8*1
-t1wor_2 ~ i9*1
-t1wor_3 ~ i10*1
-
-t3wor_1 ~ i8*1
-t3wor_2 ~ i9*1
-t3wor_3 ~ i10*1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-
-t3wor ~ WOR*t1wor + CPL*t1cplan_l
-t3cplan_l ~ t1cplan_l 
-
-t1wor ~~ t1cplan_l
-t3wor ~~ t3cplan_l
-'
-
-fit_theor <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
-summary(fit_theor, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
-modificationindices(fit_theor, sort = T)
-
-
-anova(fit_stab, fit_theor)
-
-semPaths(fit_theor, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1, layout = "tree", rotation = 1, structural = T, fade = FALSE)
-```
-
-```{r}
-library(broom)
-library(dplyr)
-library(foreign)
-library(xtable)
-library(lavaan)
-fit_table <- tidy(fit_theor, conf.int = T)
-# get parameter estimates 
-output_df <- rbind(
-fit_table[fit_table$label == "WOR", ],
-fit_table[fit_table$label == "CPL", ],
-fit_table[fit_table$label == "AGE", ],
-fit_table[fit_table$label == "GENDER", ],
-fit_table[fit_table$label == "CORONA", ],
-fit_table[fit_table$label == "FOUND", ]
-
-)
-
-round_df <- function(x, digits) {
-    numeric_columns <- sapply(x, mode) == 'numeric'
-    x[numeric_columns] <-  round(x[numeric_columns], digits)
-    x
-}
-
-pvalr <- function(pvals, sig.limit = .001, digits = 3, html = FALSE) {
-
-  roundr <- function(x, digits = 1) {
-    res <- sprintf(paste0('%.', digits, 'f'), x)
-    zzz <- paste0('0.', paste(rep('0', digits), collapse = ''))
-    res[res == paste0('-', zzz)] <- zzz
-    res
-  }
-
-  sapply(pvals, function(x, sig.limit) {
-    if (x < sig.limit)
-      if (html)
-        return(sprintf('&lt; %s', format(sig.limit))) else
-          return(sprintf('< %s', format(sig.limit)))
-    if (x > .1)
-      return(roundr(x, digits = 3)) else
-        return(roundr(x, digits = digits))
-  }, sig.limit = sig.limit)
-}
-
-
-out_df <- output_df %>% dplyr::select(dplyr::matches("term|estimate|std.error|p.value|conf.low|conf.high|std.all")) %>%
-  mutate(term = replace(term, term == 't3wor ~ t1wor', 'T1 Worry')) %>%
-mutate(term = replace(term, term == 't3wor ~ t1cplan_l', 'T1 Planning'))  %>%
-  mutate(term = replace(term, term == 't3wor ~ P_age', 'Age')) %>%
-  mutate(term = replace(term, term == 't3wor ~ P_gender', 'Gender')) %>%
-  mutate(term = replace(term, term == 't3wor ~ P_jobcorona_1', 'Covid infl.')) %>%
-  mutate(term = replace(term, term == 't3wor ~ t1found', 'Job found'))
-  
-
-
-p.value<- out_df$p.value  %>% as.numeric(.)  %>% pvalr(., digits = 3) %>%  as.character(.) %>% gsub("0\\.", "\\.", .)
-out_df <- out_df %>%dplyr::select(., -p.value)
-out_df <- cbind(out_df, p.value)
-out_df$conf.low <- formatC(out_df$conf.low, digits = 3, form = "f")
-out_df$conf.high <- formatC(out_df$conf.high, digits = 3, form = "f")
-out_df$estimate <- round(out_df$estimate, 3)
-out_df$std.all <- round(out_df$std.all, 3)
-out_df$std.error <- round(out_df$std.error, 3)
-out_df$CI <- paste0("[",out_df$conf.low, "; ", out_df$conf.high,"]")
-out_df <- out_df %>%dplyr::select(-matches("conf"))
-
-out_df <- out_df[, c(1,2,3,5,6,4)]
-colnames(out_df) <- c("Predictor", "\\textit{B}", "\\textit{SE}", "\\textit{p}", "95\\% CI [LL; UL]", "\\beta")
-
-print(xtable(out_df, type = "latex"), file = "../output/paras_direct_G2_lagged.tex", include.rownames = F ,sanitize.text.function = function(x){x})
 ```
 
 
@@ -3166,240 +1677,17 @@ t1wor ~~ t1cplan_l
 t3wor ~~ t3cplan_l
 '
 
-fit_reci <- sem(direct_effects, data=df_sel, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
+fit_reci <- sem(direct_effects, data=df_sel, estimator='mlr',missing='fiml', fixed.x = F) #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
 summary(fit_reci, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
 modificationindices(fit_reci, sort = T)
 
 
 anova(fit_reci, fit_theor)
 ```
-
-#### nocon: reciprocal model
-
-```{r}
-direct_effects<-'
-t1cplan_l =~ OA*t1cplan_1  + lambda2*t1cplan_2 + lambda3*t1cplan_3 + lambda4*t1cplan_4 + lambda5*t1cplan_5 + lambda6*t1cplan_6
-
-t3cplan_l =~ OA*t3cplan_1  + lambda2*t3cplan_2 + lambda3*t3cplan_3 + lambda4*t3cplan_4 + lambda5*t3cplan_5 + lambda6*t3cplan_6
-
-
-# Intercepts
-t1cplan_1 ~ i2*1
-t1cplan_2 ~ i3*1
-t1cplan_3 ~ i4*1
-t1cplan_4 ~ i5*1
-t1cplan_5 ~ i6*1
-t1cplan_6 ~ i7*1
-
-t3cplan_1 ~ i2*1
-t3cplan_2 ~ i3*1
-t3cplan_3 ~ i4*1
-t3cplan_4 ~ i5*1
-t3cplan_5 ~ i6*1
-t3cplan_6 ~ i7*1
-
-# Unique Variances and Covariances
-t1cplan_1 ~~ t1cplan_1
-t1cplan_2 ~~ t1cplan_2
-t1cplan_3 ~~ t1cplan_3
-t1cplan_4 ~~ t1cplan_4
-t1cplan_5 ~~ t1cplan_5
-t1cplan_6 ~~ t1cplan_6
-
-t3cplan_1 ~~ t3cplan_1
-t3cplan_2 ~~ t3cplan_2
-t3cplan_3 ~~ t3cplan_3
-t3cplan_4 ~~ t3cplan_4
-t3cplan_5 ~~ t3cplan_5
-t3cplan_6 ~~ t3cplan_6
-
-t1cplan_1 ~~ t3cplan_1
-t1cplan_2 ~~ t3cplan_2
-t1cplan_3 ~~ t3cplan_3
-t1cplan_4 ~~ t3cplan_4
-t1cplan_5 ~~ t3cplan_5
-t1cplan_6 ~~ t3cplan_6
-
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
-
-
-t1wor =~ OB*t1wor_1  + lambda22*t1wor_2 + lambda32*t1wor_3 
-t3wor =~ OB*t3wor_1  + lambda22*t3wor_2 + lambda32*t3wor_3 
-
-
-# Intercepts
-t1wor_1 ~ i8*1
-t1wor_2 ~ i9*1
-t1wor_3 ~ i10*1
-
-t3wor_1 ~ i8*1
-t3wor_2 ~ i9*1
-t3wor_3 ~ i10*1
-
-# Unique Variances and Covariances
-t1wor_1 ~~ t1wor_1
-t1wor_2 ~~ t1wor_2
-t1wor_3 ~~ t1wor_3
-
-t3wor_1 ~~ t3wor_1
-t3wor_2 ~~ t3wor_2
-t3wor_3 ~~ t3wor_3
-
-t1wor_1 ~~ t3wor_1
-t1wor_2 ~~ t3wor_2
-t1wor_3 ~~ t3wor_3
-
-
-t1wor ~ P_jobcorona_1 + P_age + P_gender + t1found
-t3wor ~ t1wor + P_jobcorona_1 + P_age + P_gender + t1found + t1cplan_l
-
-t3cplan_l ~ t1cplan_l + P_jobcorona_1 + P_age + P_gender + t1found + t1wor 
-t1cplan_l ~ P_jobcorona_1 + P_age + P_gender + t1found
-
-t1wor ~~ t1cplan_l
-t3wor ~~ t3cplan_l
-'
-
-fit_reci <- sem(direct_effects, data=df_sel, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
-summary(fit_reci, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
-modificationindices(fit_reci, sort = T)
-
-
-anova(fit_reci, fit_theor)
-
-semPaths(fit_reci, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
-```
-
-## lagged direct effectsb with controls T1 plan > t3 wor
-
-```{r}
-direct_effects<-'
-Worry_T1=~1*t1wor_1+t1wor_2+t1wor_3      # This specifies the measurement model 
-Worry_T3=~1*t3wor_1+equal("Worry_T1=~t1wor_2")*t3wor_2+equal("Worry_T1=~t1wor_3")*t3wor_3
-
-t1wor_1~~t3wor_1   # This allows residual covariance on indicator 1 across T1 and t3
-t1wor_2~~t3wor_2
-t1wor_3~~t3wor_3
-
-t1wor_1~~t1wor_1   # This allows residual variance on indicator 1 at T1
-t1wor_2~~t1wor_2  
-t1wor_3~~t1wor_3
-
-t3wor_1~~t3wor_1   # This allows residual variance on indicator 1 at T1
-t3wor_2~~t3wor_2  
-t3wor_3~~t3wor_3
-
-# Intercepts
-t1wor_1 ~ i2*1
-t1wor_2 ~ i3*1
-t1wor_3 ~ i4*1
-
-t3wor_1 ~ i2*1
-t3wor_2 ~ i3*1
-t3wor_3 ~ i4*1
-
-
-Cplan_T1=~t1cplan_1+t1cplan_2+t1cplan_3+t1cplan_4+t1cplan_5+t1cplan_6  # This specifies the measurement model for cplanan_T1 
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-Worry_T1 ~  Cplan_T1 + P_jobcorona_1 + P_age + P_gender + t1found
-Worry_T3 ~ WOR*Worry_T1 + CPL*Cplan_T1 + CORONA*P_jobcorona_1 + AGE*P_age + GENDER*P_gender + FOUND*t1found
-'
-
-fit <- sem(direct_effects, data=df, estimator='mlr',missing='fiml') #If fixed.x=T TRUE, the exogenous `x' covariates are considered fixed variables and the means, variances and covariances of these variables are fixed to their sample values. If FALSE, they are considered random
-summary(fit, fit.measures=TRUE, standardized=TRUE, rsquare=TRUE)
-
-```
-
-
 
 ## Mediation model
 
-
-### Career confidence
-
-```{r}
-### Mediation
-model <- ' t1cplan =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6
-t2cconf =~ t2cconf_1 + t2cconf_2 + t2cconf_3+ t2cconf_4
-Worry_T3=~1*t3wor_1+t3wor_2+t3wor_3 
-
-
-# direct effect
-             Worry_T3 ~ c*t1cplan 
-           # mediator
-             t2cconf~ a *t1cplan 
-             Worry_T3 ~ b * t2cconf 
-           # indirect effect (a*b)
-             ab := a*b 
-           # total effect
-             total := c + (a*b)
-         '
-set.seed(123)
-fit <- sem(model, data = df, missing = "fiml", se = "bootstrap", bootstrap = 100) # run with 10,000 in final model
-
-#lavInspect(fit, what = "data", add.labels = TRUE, add.class = TRUE,
-#           list.by.group = TRUE,
-#           drop.list.single.group = TRUE)
-
-summary(fit, standardized = T, fit.measures=TRUE, rsquare=TRUE)
-semPaths(fit, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
-```
-
-```{r}
-library(broom)
-library(dplyr)
-library(foreign)
-library(xtable)
-library(lavaan)
-fit_table <- tidy(fit, conf.int = T)
-# get parameter estimates 
-output_df <- rbind(
-fit_table[fit_table$label == "a", ],
-fit_table[fit_table$label == "b", ],
-fit_table[fit_table$label == "c", ],
-fit_table[fit_table$label == "ab", ],
-fit_table[fit_table$label == "total", ]
-
-
-)
-
-out_df <- output_df %>% dplyr::select(dplyr::matches("term|estimate|std.error|p.value|conf.low|conf.high|std.all")) %>%
-  mutate(term = replace(term, term == 't2cconf ~ t1cplan', 'T1 Clarity $\\rightarrow$ T2 CRSE')) %>%
-mutate(term = replace(term, term == 'Worry_T3 ~ t2cconf', 'T2 CRSE $\\rightarrow$ T3 Worry'))  %>%
-  mutate(term = replace(term, term == 'Worry_T3 ~ t1cplan', 'T1 Clarity $\\rightarrow$ T3 Worry'))  %>%
-  mutate(term = replace(term, term == 'ab := a*b', 'Indirect effect: T1 Clarity $\\rightarrow$  T2 CRSE $\\rightarrow$ T3 Worry')) %>%
-   mutate(term = replace(term, term == 'total := c+(a*b)', 'Total effect'))
-
-
-p.value<- out_df$p.value  %>% as.numeric(.)  %>% pvalr(., digits = 3) %>%  as.character(.) %>% gsub("0\\.", "\\.", .)
-out_df <- out_df %>%dplyr::select(., -p.value)
-out_df <- cbind(out_df, p.value)
-out_df$conf.low <- formatC(out_df$conf.low, digits = 4, form = "f")
-out_df$conf.high <- formatC(out_df$conf.high, digits = 4, form = "f")
-out_df$estimate <- round(out_df$estimate, 3)
-out_df$std.all <- round(out_df$std.all, 3)
-out_df$std.error <- round(out_df$std.error, 3)
-out_df$CI <- paste0("[",out_df$conf.low, "; ", out_df$conf.high,"]")
-out_df <- out_df %>%dplyr::select(-matches("conf"))
-
-out_df <- out_df[, c(1,2,3,5,6,4)]
-colnames(out_df) <- c("Predictor", "\\textit{B}", "\\textit{SE}", "\\textit{p}", "95\\% CI [LL; UL]", "\\beta")
-
-print(xtable(out_df, type = "latex"), file = "../output/paras_direct_G2_mediation.tex", include.rownames = F ,sanitize.text.function = function(x){x})
-# get fit indices 
-```
-
-
-### Career confidence, controlling for T1 Worry and controls added
+### Career confidence, controlling for T1 Worry 
 
 ```{r}
 library(lavaan)
@@ -3459,12 +1747,7 @@ t2cconf =~ t2cconf_1 + t2cconf_2 + t2cconf_3+ t2cconf_4
 
          '
 fit <- sem(model, data = df, missing = "fiml")
-lavInspect(fit, what = "data", add.labels = TRUE, add.class = TRUE,
-           list.by.group = TRUE,
-           drop.list.single.group = TRUE)
-
 summary(fit, standardized = F, fit.measures=TRUE)
-modificationindices(fit, sort = T)
 semPaths(fit, what = "est", residuals = FALSE, intercepts = FALSE, sizeMan = 4, sizeLat = 10, edge.label.cex=1)
 ```
 
@@ -3512,184 +1795,6 @@ out_df <- out_df[, c(1,2,3,5,6,4)]
 colnames(out_df) <- c("Predictor", "\\textit{B}", "\\textit{SE}", "\\textit{p}", "95\\% CI [LL; UL]", "\\beta")
 
 print(xtable(out_df, type = "latex"), file = "../output/paras_direct_G2_mediation.tex", include.rownames = F ,sanitize.text.function = function(x){x})
-# get fit indices 
-```
-
-```{r}
-library(lavaan)
-### Mediation
-model <- ' t1cplan =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6
-
-t1cplan_5 ~~ t1cplan_1
-t1cplan_5 ~~ t1cplan_6
-t1cplan_1 ~~ t1cplan_6
-
-t3cplan =~ t3cplan_1 + t3cplan_2 + t3cplan_3 + t3cplan_4 + t3cplan_5 + t3cplan_6
-
-t3cplan_5 ~~ t3cplan_1
-t3cplan_5 ~~ t3cplan_6
-t3cplan_1 ~~ t3cplan_6
-
-t2cconf =~ t2cconf_1 + t2cconf_2 + t2cconf_3+ t2cconf_4
-
-Worry_T1=~1*t1wor_1+t1wor_2+t1wor_3      # This specifies the measurement model 
-Worry_T3=~1*t3wor_1+equal("Worry_T1=~t1wor_2")*t3wor_2+equal("Worry_T1=~t1wor_3")*t3wor_3
-
-t1wor_1~~t3wor_1   # This allows residual covariance on indicator 1 across T1 and t3
-t1wor_2~~t3wor_2
-t1wor_3~~t3wor_3
-
-t1wor_1~~t1wor_1   # This allows residual variance on indicator 1 at T1
-t1wor_2~~t1wor_2  
-t1wor_3~~t1wor_3
-
-t3wor_1~~t3wor_1   # This allows residual variance on indicator 1 at T1
-t3wor_2~~t3wor_2  
-t3wor_3~~t3wor_3
-
-
-# Intercepts
-t1wor_1 ~ i2*1
-t1wor_2 ~ i3*1
-t1wor_3 ~ i4*1
-
-t3wor_1 ~ i2*1
-t3wor_2 ~ i3*1
-t3wor_3 ~ i4*1
-
-
-
-# direct effect
-             Worry_T3 ~ c*t1cplan + WOR*Worry_T1 
-             
-           # mediator
-             t2cconf~ a *t1cplan 
-             Worry_T3 ~ b * t2cconf 
-           # indirect effect (a*b)
-             ab := a*b 
-           # total effect
-             total := c + (a*b)
-         '
-fit <- sem(model, data = df, missing = "fiml", se = "bootstrap", bootstrap = 100)#run wuth 10,000 in final model
-lavInspect(fit, what = "data", add.labels = TRUE, add.class = TRUE,
-           list.by.group = TRUE,
-           drop.list.single.group = TRUE)
-
-summary(fit, standardized = F, fit.measures=TRUE)
-modificationindices(fit, sort = T)
-
-```
-
-```{r}
-library(broom)
-library(dplyr)
-library(foreign)
-library(xtable)
-library(lavaan)
-fit_table <- tidy(fit, conf.int = T)
-# get parameter estimates 
-output_df <- rbind(
-  fit_table[fit_table$label == "WOR", ],
-fit_table[fit_table$label == "a", ],
-fit_table[fit_table$label == "b", ],
-fit_table[fit_table$label == "c", ],
-fit_table[fit_table$label == "ab", ],
-fit_table[fit_table$label == "total", ]
-
-
-)
-
-out_df <- output_df %>% dplyr::select(dplyr::matches("term|estimate|std.error|p.value|conf.low|conf.high|std.all")) %>%
-  mutate(term = replace(term, term == 'Worry_T3 ~ Worry_T1', 'T1 Worry $\\rightarrow$ T3 Worry')) %>%
-  mutate(term = replace(term, term == 't2cconf ~ t1cplan', 'T1 Clarity $\\rightarrow$ T2 CRSE')) %>%
-mutate(term = replace(term, term == 'Worry_T3 ~ t2cconf', 'T2 CRSE $\\rightarrow$ T3 Worry'))  %>%
-  mutate(term = replace(term, term == 'Worry_T3 ~ t1cplan', 'T1 Clarity $\\rightarrow$ T3 Worry')) %>%
-  mutate(term = replace(term, term == 'ab := a*b', 'Indirect effect: T1 Clarity $\\rightarrow$  T2 CRSE $\\rightarrow$ T3 Worry')) %>%
-   mutate(term = replace(term, term == 'total := c+(a*b)', 'Total effect'))
-
-
-p.value<- out_df$p.value  %>% as.numeric(.)  %>% pvalr(., digits = 3) %>%  as.character(.) %>% gsub("0\\.", "\\.", .)
-out_df <- out_df %>%dplyr::select(., -p.value)
-out_df <- cbind(out_df, p.value)
-out_df$conf.low <- formatC(out_df$conf.low, digits = 3, form = "f")
-out_df$conf.high <- formatC(out_df$conf.high, digits = 3, form = "f")
-out_df$estimate <- round(out_df$estimate, 3)
-out_df$std.all <- round(out_df$std.all, 3)
-out_df$std.error <- round(out_df$std.error, 3)
-out_df$CI <- paste0("[",out_df$conf.low, "; ", out_df$conf.high,"]")
-out_df <- out_df %>%dplyr::select(-matches("conf"))
-
-out_df <- out_df[, c(1,2,3,5,6,4)]
-colnames(out_df) <- c("Predictor", "\\textit{B}", "\\textit{SE}", "\\textit{p}", "95\\% CI [LL; UL]", "\\beta")
-
-print(xtable(out_df, type = "latex"), file = "../output/paras_direct_G2_mediation_controls.tex", include.rownames = F ,sanitize.text.function = function(x){x})
-# get fit indices 
-```
-
-### Mediation model: Multigroup
-
-```{r}
-model <- ' t1cplan =~ t1cplan_1 + t1cplan_2 + t1cplan_3 + t1cplan_4 + t1cplan_5 + t1cplan_6
-t2cconf =~ t2cconf_1 + t2cconf_2 + t2cconf_3+ t2cconf_4
-t3wor =~ t3wor_1 + t3wor_2 + t3wor_3 + t3wor_4 
-
-# direct effect
-             t3wor ~ c("c1", "c2") *t1cplan  
-           # mediator
-             t2cconf~ c("a1", "a2") *t1cplan 
-      
-             t3wor ~ c("b1", "b2") * t2cconf
-
-           # indirect effect (a*b)
-             a1b1 := a1*b1
-             a2b2 := a2*b2
-            
-           # total effect
-             totalc1 := c1 + (a1*b1)
-             totalc2 := c2 + (a2*b2)
-             
-         '
-fit <- sem(model, data = df, group = "t1found", missing = "fiml", se = "bootstrap", bootstrap = 100)
-summary(fit, fit.measures=TRUE)
-```
-
-
-```{r}
-library(broom)
-library(dplyr)
-library(foreign)
-library(xtable)
-library(lavaan)
-fit_table <- tidy(fit, conf.int = T)
-# get parameter estimates 
-output_df <- rbind(
-  fit_table[fit_table$label == "WOR", ],
-fit_table[fit_table$label == "a1", ],
-fit_table[fit_table$label == "b1", ],
-fit_table[fit_table$label == "c1", ],
-fit_table[fit_table$label == "a1b1", ],
-fit_table[fit_table$label == "totalc1", ],
-fit_table[fit_table$label == "a2", ],
-fit_table[fit_table$label == "b2", ],
-fit_table[fit_table$label == "c2", ],
-fit_table[fit_table$label == "a2b2", ],
-fit_table[fit_table$label == "totalc2", ]
-)
-
-out_df <- output_df %>% dplyr::select(dplyr::matches("term|estimate|std.error|p.value|conf.low|conf.high"))
-
-p.value<- out_df$p.value  %>% as.numeric(.)  %>% pvalr(., digits = 3) %>%  as.character(.) %>% gsub("0\\.", "\\.", .)
-out_df <- out_df %>%dplyr::select(., -p.value)
-out_df <- cbind(out_df, p.value)
-out_df$conf.low <- formatC(out_df$conf.low, digits = 3, form = "f")
-out_df$conf.high <- formatC(out_df$conf.high, digits = 3, form = "f")
-out_df$estimate <- round(out_df$estimate, 3)
-out_df$std.error <- round(out_df$std.error, 3)
-out_df$CI <- paste0("[",out_df$conf.low, "; ", out_df$conf.high,"]")
-out_df <- out_df %>%dplyr::select(-matches("conf"))
-colnames(out_df) <- c("Predictor", "\\textit{B}", "\\textit{SE}", "\\textit{p}", "95\\% Boot-CI [LL; UL]")
-
-print(xtable(out_df, type = "latex"), file = "../output/paras_direct_G2_mediation_multi.tex", include.rownames = F ,sanitize.text.function = function(x){x})
 # get fit indices 
 ```
 
