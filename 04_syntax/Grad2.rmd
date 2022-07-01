@@ -181,7 +181,7 @@ df_sel <- df %>% dplyr::select(-matches("Status|IPAddress|Progress|Duration|Fini
 ```{r}
 library(haven)
 df_sel$P_ID <- sample(length(df_sel$P_ID))
-haven::write_sav(df, "../data/raw/df_raw.sav")
+haven::write_sav(df, "../03_raw_and_processed_data/raw/df_raw.sav")
 ```
 
 # RUN FROM HERE 
@@ -189,7 +189,7 @@ haven::write_sav(df, "../data/raw/df_raw.sav")
 ## Read in data 
 
 ```{r}
-df_sel <- read_sav("../data/raw/df_raw.sav")
+df_sel <- read_sav("../03_raw_and_processed_data/raw/df_raw.sav")
 ```
 
 ## PANA and exhaustion 
@@ -225,9 +225,10 @@ colnames(df_sel) <- gsub('coping_8', 'copeselfdistr_2', colnames(df_sel))
 colnames(df_sel) <- gsub('coping_9', 'copediseng_1', colnames(df_sel))
 ```
 
-## Anticipated emotions
 
-```{r}
+
+```{r eval = F}
+## Anticipated emotions
 colnames(df_sel) <- gsub('antic_1', 'anticneg_1', colnames(df_sel))
 colnames(df_sel) <- gsub('antic_2', 'anticneg_2', colnames(df_sel))
 colnames(df_sel) <- gsub('antic_3', 'anticpos_1', colnames(df_sel))
@@ -399,9 +400,8 @@ df$t1found <- case_when((df$t1found == 1) ~ 2,
 ```
 
 
+```{r eval = F}
 ## check for duplicates with UK Study
-
-```{r}
 my_dat_UK_Study <- read_sav("../../data/my_dat_UK_Study.sav")
 duplicated(df$P_ID, my_dat_UK_Study$t1id)
 ```

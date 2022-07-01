@@ -9,9 +9,9 @@
 .Rproj.user/
 
 # Rendered reports
-analysis/*.html
-analysis/*.docx
-analysis/*.pdf
+04_syntax/*.html
+04_syntax/*.docx
+04_syntax/*.pdf
 docs/*.html
 docs/*.docx
 docs/*.pdf
@@ -20,8 +20,8 @@ docs/*.pdf
 output/
 
 # knitr and R markdown default cache directories
-/analysis/cache/
-/analysis/figures/
+/04_syntax/cache/
+/04_syntax/figures/
 
 # Temporary files created by R markdown
 *.utf8.md
@@ -31,7 +31,10 @@ output/
 .Rproj.user
 
 # Ethical approval
-/ethic
+/01_Ethics_application_and_approval
+
+# Questionnaire
+/02_Research_materials
 
 # Final paper
 /paper
