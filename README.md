@@ -16,14 +16,14 @@ Started on 2022-01-11.
 * **05_publication** - final publication
 
 
-## Data
+## 03_raw_and_processed_data
 
 Input data files include:
 
 * **raw** - raw anonymized data
 * **processed** - processed data after cleaning and recoding etc
 
-## Analysis
+## 04_syntax
 
 Main analysis file:
 
